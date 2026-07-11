@@ -97,7 +97,15 @@ Entregado:
 - Backend: FastAPI con arquitectura modular por dominios (`auth`, `users`, `songs`, `tracks`, `playlists`, `albums`, `categories`, `storage`, `playback`), cada uno con `router.py` / `models.py` / `schemas.py` / `service.py`. `Base` declarativa con `id`/`created_at`/`updated_at` en `app/db/base.py`. Settings vía `pydantic-settings` en `app/core/config.py`. Healthcheck `/health` verificado con uvicorn.
 - Alembic inicializado y conectado a `Settings.DATABASE_URL` y `Base.metadata` (aún sin modelos concretos, listo para autogenerate en el módulo de Base de Datos).
 - `.gitignore` raíz, `README.md` raíz y de backend, `.env.example` en frontend y backend.
-- Repositorio Git inicializado localmente (sin remoto GitHub configurado todavía).
+- Repositorio remoto: `git@github.com:riavasystem/studiodesk.git` (push vía Deploy Key dedicado del repo).
+- Frontend desplegado en Vercel (equipo `ClientesRiava`), dominio productivo `https://studiodesk.riava.cl`, deploy automático en cada push vía integración nativa Vercel↔GitHub.
+- Backend desplegado en Hetzner (`root@49.12.66.17`), siguiendo la misma convención que las otras apps del servidor (`clientefiel`, `controlcost`):
+  - Usuario/grupo de sistema `studiodesk`, estructura `/opt/apps/studiodesk/{releases/<timestamp>, current -> symlink, shared/{venv,.env,logs,uploads,backups,run}, scripts}`
+  - systemd `studiodesk-api.service` (uvicorn, puerto interno 8002, no expuesto directo — solo vía nginx)
+  - nginx + Certbot: `https://api.studiodesk.riava.cl` con SSL de Let's Encrypt (renovación automática), healthcheck verificado en `/health`
+  - PostgreSQL 16 nativo compartido del servidor: DB `studiodesk_prod`, rol `studiodesk_user` (credenciales solo en `shared/.env` del servidor)
+  - CI/CD: GitHub Actions (`.github/workflows/deploy-backend.yml`) — en push a `main` que toque `backend/**`, hace rsync del código al usuario `deploy` vía SSH (keypair dedicado, secret `HETZNER_SSH_KEY`), instala deps, corre `alembic upgrade head`, actualiza el symlink `current` y reinicia el servicio. Se decidió systemd+GitHub Actions sobre Docker para mantener consistencia con el resto de apps del servidor (ninguna usa Docker pese a estar instalado).
+  - DNS gestionado en Cloudflare (zona `riava.cl`), registros DNS-only (sin proxy): CNAME `studiodesk` → Vercel, A `api.studiodesk` → `49.12.66.17`.
 
 Estado
 
@@ -164,7 +172,7 @@ PostgreSQL
 
 Infraestructura
 
-- Crear repositorio remoto en GitHub y configurar el push inicial (pendiente de autorización del usuario)
+Completada (repo, Vercel, Hetzner, DNS, SSL y CI/CD ya en producción).
 
 Backend
 
@@ -283,3 +291,12 @@ v0.1.0
 - Backend FastAPI con estructura modular por dominios, healthcheck funcional.
 - Alembic configurado.
 - Repositorio Git inicializado localmente.
+
+v0.1.1
+
+- Repositorio conectado a GitHub (`riavasystem/studiodesk`).
+- Frontend desplegado en Vercel: `https://studiodesk.riava.cl`.
+- Backend desplegado en Hetzner: `https://api.studiodesk.riava.cl` (systemd + nginx + Certbot).
+- Base de datos `studiodesk_prod` provisionada en el PostgreSQL compartido del servidor.
+- CI/CD con GitHub Actions para el backend (deploy automático en push a `main`).
+- Fix: `.gitignore` excluía por error `backend/app/domains/storage/` (patrón `storage/` demasiado amplio); corregido a `/backend/shared/storage/`.
