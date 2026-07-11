@@ -1,0 +1,84 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+env:
+  APP_NAME: studiodesk
+  APP_USER: deploy
+  APP_HOST: 49.12.66.17
+  APP_DIR: /opt/apps/studiodesk
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (syntax check)
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -c "import app.main"
+
+      - name: Set release name
+        id: release
+        run: echo "name=$(date +%Y%m%d_%H%M%S)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$APP_HOST" >> ~/.ssh/known_hosts
+
+      - name: Create release directory on server
+        run: |
+          ssh -i ~/.ssh/deploy_key "$APP_USER@$APP_HOST" \
+            "mkdir -p $APP_DIR/releases/${{ steps.release.outputs.name }}/backend"
+
+      - name: Upload backend code
+        run: |
+          rsync -az --delete \
+            --exclude ".venv" --exclude "__pycache__" --exclude "*.pyc" --exclude ".env" \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            backend/ "$APP_USER@$APP_HOST:$APP_DIR/releases/${{ steps.release.outputs.name }}/backend/"
+
+      - name: Install deps, migrate, switch release, restart
+        run: |
+          ssh -i ~/.ssh/deploy_key "$APP_USER@$APP_HOST" bash -s <<EOF
+            set -euo pipefail
+            RELEASE_DIR="$APP_DIR/releases/${{ steps.release.outputs.name }}"
+
+            ln -sfn "$APP_DIR/shared/.env" "\$RELEASE_DIR/backend/.env"
+
+            "$APP_DIR/shared/venv/bin/pip" install --upgrade pip -q
+            "$APP_DIR/shared/venv/bin/pip" install -r "\$RELEASE_DIR/backend/requirements.txt" -q
+
+            cd "\$RELEASE_DIR/backend"
+            "$APP_DIR/shared/venv/bin/alembic" upgrade head
+
+            ln -sfn "\$RELEASE_DIR" "$APP_DIR/current"
+
+            sudo systemctl restart studiodesk-api
+            sudo systemctl reload nginx
+
+            cd "$APP_DIR/releases" && ls -1t | tail -n +6 | xargs -r rm -rf
+          EOF
+
+      - name: Health check
+        run: |
+          sleep 3
+          ssh -i ~/.ssh/deploy_key "$APP_USER@$APP_HOST" "curl -sf http://127.0.0.1:8002/health"
