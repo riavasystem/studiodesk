@@ -12,6 +12,12 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from app.core.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.domains.users.models import User  # noqa: E402,F401
+from app.domains.categories.models import Category  # noqa: E402,F401
+from app.domains.albums.models import Album  # noqa: E402,F401
+from app.domains.songs.models import Song  # noqa: E402,F401
+from app.domains.tracks.models import Track  # noqa: E402,F401
+from app.domains.playlists.models import Playlist, PlaylistSong  # noqa: E402,F401
+from app.domains.storage.models import AudioFile  # noqa: E402,F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
