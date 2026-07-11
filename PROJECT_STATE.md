@@ -8,7 +8,7 @@ Salem Studio
 
 Versión
 
-0.2.0
+0.3.0
 
 Estado
 
@@ -123,20 +123,29 @@ Entregado hasta ahora:
 - Dominio `auth`: hashing con passlib/bcrypt y JWT (access + refresh) en `app/core/security.py`, dependencias `get_current_user`/`get_current_superuser` en `app/core/deps.py`, endpoints `POST /api/v1/auth/login` (OAuth2PasswordRequestForm) y `POST /api/v1/auth/refresh`.
 - Primera migración Alembic (`ddab0d4d613c_create_users_table`) generada contra la DB real de Hetzner y aplicada en producción vía el pipeline de CI/CD.
 - Superusuario inicial sembrado en producción: `contacto@riava.cl` (password hasheado con bcrypt, nunca almacenado en texto plano ni en git). Login y endpoint protegido verificados end-to-end contra `https://api.studiodesk.riava.cl`.
+- Dominios de catálogo completos, con CRUD y control de ownership (dueño o superusuario) en cada escritura:
+  - `categories`: catálogo simple (nombre único).
+  - `albums`: título, artista, portada opcional, dueño.
+  - `songs`: título, artista, bpm, tonalidad, duración, categoría y álbum opcionales, dueño.
+  - `tracks`: pertenece a una `song` (1:N con cascade delete), con `name`, `file_path`, `order_index`, `volume`, `is_muted`, `is_solo` — implementa la estructura de instrumentos independientes por canción (voz, coros, piano, bajo, etc.) definida en CLAUDE.md.
+  - `playlists`: pertenece a un usuario, con tabla intermedia `PlaylistSong` (con `order_index`, `id`, `created_at`, `updated_at` propios — no un secondary table plano, para respetar la regla de CLAUDE.md de que toda tabla tenga esas 3 columnas).
+  - `storage`: subida (`POST /api/v1/storage/upload`, multipart) y descarga de archivos de audio a disco local en Hetzner (`shared/uploads`), validando extensión/content-type; nunca usa almacenamiento externo (S3, Firebase, etc.), tal como exige CLAUDE.md.
+- Segunda migración Alembic (`b06ea4f4fef5_add_catalog_domains`) con las 6 tablas nuevas, generada y aplicada en producción.
+- CRUD verificado end-to-end en producción: creación de categoría → álbum → canción → track → playlist con la canción, y borrado en cascada confirmado (al borrar una canción, su track se elimina solo).
 
 Pendiente (siguiente iteración del mismo módulo):
 
-- Modelos + CRUD de `songs`, `tracks`, `playlists`, `albums`, `categories`, `storage`, `playback` (hoy son dominios vacíos, solo con el router stub)
+- `playback`: no tiene modelo todavía — es un dominio de control en vivo (tiempo real), no de catálogo. Se diseñará junto con el reproductor (Fase 9-10) cuando existan requisitos concretos de frontend/WebSocket, en vez de modelarlo especulativamente ahora.
 
 Estado
 
-🟡 En Desarrollo (users/auth completos, resto de dominios pendiente)
+🟢 Completado (dominios de catálogo listos; `playback` queda deliberadamente para la fase del reproductor)
 
 ---
 
 # Próximo Módulo
 
-PostgreSQL (modelos de dominio restantes) — en paralelo, por pedido explícito del usuario, se desarrollará la landing page pública (fuera del orden estricto del roadmap, ver Decisiones Técnicas)
+PostgreSQL (ya cubierta en la práctica: PostgreSQL 16 en Hetzner con 7 tablas migradas) → seguir con Storage/Autenticación ya resueltas también → el siguiente hueco real del roadmap es Frontend/Dashboard. En paralelo, por pedido explícito del usuario, se está desarrollando la landing page pública (fuera del orden estricto del roadmap, ver Decisiones Técnicas).
 
 ---
 
@@ -180,11 +189,11 @@ Completada (repo, Vercel, Hetzner, DNS, SSL y CI/CD ya en producción).
 
 Backend
 
-- Modelos + CRUD de `songs`, `tracks`, `playlists`, `albums`, `categories`, `storage`, `playback`
+- Modelo/lógica de `playback` (control en vivo, se hará junto al reproductor)
 
 Base de Datos
 
-Completada la base (PostgreSQL 16 en Hetzner, DB `studiodesk_prod`, primera tabla `users` migrada). Pendiente el resto de tablas de dominio.
+Completada: PostgreSQL 16 en Hetzner, DB `studiodesk_prod`, 8 tablas migradas (`users`, `categories`, `albums`, `songs`, `tracks`, `playlists`, `playlist_songs`, `audio_files`).
 
 Frontend
 
@@ -318,3 +327,10 @@ v0.2.0
 - Superusuario inicial `contacto@riava.cl` sembrado en producción; login end-to-end verificado.
 - Fix: `bcrypt` fijado a `4.0.1` por incompatibilidad con `passlib` 1.7.4.
 - Landing page 3D (React Three Fiber + drei) iniciada por pedido explícito del usuario.
+
+v0.3.0
+
+- Dominios de catálogo completos: `categories`, `albums`, `songs`, `tracks` (1:N con `songs`, cascade delete), `playlists` (con tabla intermedia `playlist_songs`), `storage` (upload/download de audio a disco local en Hetzner).
+- Segunda migración Alembic (8 tablas en total) aplicada en producción.
+- CRUD y relaciones verificadas end-to-end en producción, incluyendo borrado en cascada.
+- `playback` queda deliberadamente sin modelo — se diseñará junto al reproductor (Fase 9-10).
