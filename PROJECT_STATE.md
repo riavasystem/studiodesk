@@ -8,7 +8,7 @@ Salem Studio
 
 Versión
 
-0.1.0
+0.2.0
 
 Estado
 
@@ -117,22 +117,26 @@ Estado
 
 Backend FastAPI
 
-Objetivos:
+Entregado hasta ahora:
 
-- Definir modelos SQLAlchemy por dominio (empezando por `users` y `auth`)
-- Generar primera migración Alembic
-- Implementar endpoints CRUD base
-- Definir esquemas Pydantic de entrada/salida
+- Dominio `users`: modelo `User` (email único, hashed_password, full_name, is_active, is_superuser), schemas (`UserCreate`, `UserRead`), service y endpoints (`POST /api/v1/users` registro, `GET /api/v1/users/me`, `GET /api/v1/users`, `GET /api/v1/users/{id}` — estos dos últimos protegidos, solo superusuario).
+- Dominio `auth`: hashing con passlib/bcrypt y JWT (access + refresh) en `app/core/security.py`, dependencias `get_current_user`/`get_current_superuser` en `app/core/deps.py`, endpoints `POST /api/v1/auth/login` (OAuth2PasswordRequestForm) y `POST /api/v1/auth/refresh`.
+- Primera migración Alembic (`ddab0d4d613c_create_users_table`) generada contra la DB real de Hetzner y aplicada en producción vía el pipeline de CI/CD.
+- Superusuario inicial sembrado en producción: `contacto@riava.cl` (password hasheado con bcrypt, nunca almacenado en texto plano ni en git). Login y endpoint protegido verificados end-to-end contra `https://api.studiodesk.riava.cl`.
+
+Pendiente (siguiente iteración del mismo módulo):
+
+- Modelos + CRUD de `songs`, `tracks`, `playlists`, `albums`, `categories`, `storage`, `playback` (hoy son dominios vacíos, solo con el router stub)
 
 Estado
 
-🟡 En Desarrollo
+🟡 En Desarrollo (users/auth completos, resto de dominios pendiente)
 
 ---
 
 # Próximo Módulo
 
-PostgreSQL
+PostgreSQL (modelos de dominio restantes) — en paralelo, por pedido explícito del usuario, se desarrollará la landing page pública (fuera del orden estricto del roadmap, ver Decisiones Técnicas)
 
 ---
 
@@ -176,17 +180,15 @@ Completada (repo, Vercel, Hetzner, DNS, SSL y CI/CD ya en producción).
 
 Backend
 
-- Definir modelos SQLAlchemy por dominio
-- Primera migración Alembic
-- Endpoints CRUD y schemas Pydantic
+- Modelos + CRUD de `songs`, `tracks`, `playlists`, `albums`, `categories`, `storage`, `playback`
 
 Base de Datos
 
-Pendiente
+Completada la base (PostgreSQL 16 en Hetzner, DB `studiodesk_prod`, primera tabla `users` migrada). Pendiente el resto de tablas de dominio.
 
 Frontend
 
-Pendiente
+- Landing page pública (en curso, ver Decisiones Técnicas)
 
 Reproductor
 
@@ -248,6 +250,14 @@ shadcn/ui inicializado con preset "Nova" (Lucide + Geist), base "base" (no Radix
 
 Gestor de estado adicional: TanStack Query para estado de servidor, Zustand para estado de cliente.
 
+Auth: JWT access+refresh (python-jose) y hashing con passlib/bcrypt. `bcrypt` fijado a `4.0.1` en requirements.txt — passlib 1.7.4 se cuelga indefinidamente al inicializar `CryptContext` con bcrypt>=4.1 (incompatibilidad conocida de esa combinación de versiones).
+
+Superusuario inicial (`contacto@riava.cl`) sembrado directo en la DB de producción vía script puntual por SSH — nunca se escribió la contraseña en código ni en git, solo su hash bcrypt en la tabla `users`.
+
+Landing page (nueva, por pedido explícito del usuario 2026-07-12, fuera del orden estricto del roadmap): efectos 3D con **React Three Fiber + drei** (aprobado por el usuario entre 3 opciones), limitado al hero con lazy-load para no comprometer el objetivo de Lighthouse >90 de CLAUDE.md. Esto añade una tecnología no listada originalmente en CLAUDE.md — el resto de la landing usa Framer Motion (ya en el stack) para scroll/parallax.
+
+Nota de entorno: el binario compilado de `psycopg[binary]` no logra importarse en el sandbox de macOS de este entorno de desarrollo (Gatekeeper lo rechaza). No es un bug del proyecto — en Linux (CI de GitHub Actions y el propio servidor Hetzner) funciona sin problemas. La migración Alembic y las pruebas de import se validan ahí, no localmente en Mac.
+
 ---
 
 # Reglas para Claude
@@ -300,3 +310,11 @@ v0.1.1
 - Base de datos `studiodesk_prod` provisionada en el PostgreSQL compartido del servidor.
 - CI/CD con GitHub Actions para el backend (deploy automático en push a `main`).
 - Fix: `.gitignore` excluía por error `backend/app/domains/storage/` (patrón `storage/` demasiado amplio); corregido a `/backend/shared/storage/`.
+
+v0.2.0
+
+- Dominios `users` y `auth` completos: modelo User, JWT (access+refresh), endpoints de registro/login/refresh/me, protección por rol (superusuario).
+- Primera migración Alembic (tabla `users`) generada y aplicada en producción.
+- Superusuario inicial `contacto@riava.cl` sembrado en producción; login end-to-end verificado.
+- Fix: `bcrypt` fijado a `4.0.1` por incompatibilidad con `passlib` 1.7.4.
+- Landing page 3D (React Three Fiber + drei) iniciada por pedido explícito del usuario.
