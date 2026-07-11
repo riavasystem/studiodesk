@@ -40,7 +40,7 @@ coverage/
 .pytest_cache/
 
 # Storage (audio files, local dev)
-storage/
+/backend/shared/storage/
 *.sqlite3
 
 # Vercel
