@@ -66,8 +66,8 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
   const anySolo = tracks.some((t) => t.is_solo);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-transparent shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-sm">
-      <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-5 py-3">
+    <div className="overflow-hidden rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-sm">
+      <div className="flex items-center justify-between border-b border-white/6 bg-white/2 px-5 py-3">
         <div>
           <p className="font-mono text-[10px] tracking-[0.35em] text-orange-400/80 uppercase">Consola</p>
           <h2 className="text-sm font-semibold text-white">Reproductor multipista</h2>
@@ -79,7 +79,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
 
       <div className="flex flex-col gap-6 p-5">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-1.5 rounded-xl border border-white/[0.06] bg-black/30 p-1.5 shadow-inner">
+          <div className="flex items-center gap-1.5 rounded-xl border border-white/6 bg-black/30 p-1.5 shadow-inner">
             <Button
               size="icon"
               className="rounded-lg bg-orange-500 text-black shadow-[0_0_16px_rgba(255,138,31,0.45)] hover:bg-orange-400"
@@ -112,7 +112,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
             </Button>
           </div>
 
-          <span className="rounded-md border border-white/[0.06] bg-black/30 px-2.5 py-1.5 font-mono text-xs tabular-nums text-white/70">
+          <span className="rounded-md border border-white/6 bg-black/30 px-2.5 py-1.5 font-mono text-xs tabular-nums text-white/70">
             {formatTime(player.currentTime)} <span className="text-white/25">/</span> {formatTime(player.duration)}
           </span>
         </div>
@@ -126,7 +126,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
           disabled={!player.isReady}
         />
 
-        <div className="flex flex-wrap gap-x-8 gap-y-4 rounded-xl border border-white/[0.06] bg-black/20 p-4">
+        <div className="flex flex-wrap gap-x-8 gap-y-4 rounded-xl border border-white/6 bg-black/20 p-4">
           <div className="flex min-w-48 flex-1 items-center gap-3">
             <Label className="w-14 font-mono text-[10px] tracking-widest text-white/40 uppercase">Tempo</Label>
             <Slider
@@ -161,7 +161,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] tracking-widest text-white/40 uppercase">Marcadores</span>
             <input
-              className="h-7 flex-1 rounded-md border border-white/[0.06] bg-black/20 px-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-orange-400/40"
+              className="h-7 flex-1 rounded-md border border-white/6 bg-black/20 px-2 text-xs text-white outline-none placeholder:text-white/25 focus:border-orange-400/40"
               placeholder="Nombre del marcador"
               value={markerLabel}
               onChange={(e) => setMarkerLabel(e.target.value)}
@@ -201,7 +201,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 border-t border-white/[0.06] pt-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 border-t border-white/6 pt-5 sm:grid-cols-2">
           {tracks.map((track) => {
             const url = player.trackUrls.get(track.id);
             const level = player.trackLevels.get(track.id) ?? 0;
@@ -212,8 +212,8 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
                 key={track.id}
                 className={`flex flex-col gap-3 rounded-xl border p-4 transition-colors ${
                   audible && player.isPlaying
-                    ? "border-orange-400/20 bg-gradient-to-b from-orange-400/[0.04] to-white/[0.02]"
-                    : "border-white/[0.06] bg-white/[0.015]"
+                    ? "border-orange-400/20 bg-linear-to-b from-orange-400/4 to-white/2"
+                    : "border-white/6 bg-white/1.5"
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -231,7 +231,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
                       className={`rounded-md px-2 py-1 font-mono text-[10px] font-semibold tracking-wide transition-all ${
                         track.is_muted
                           ? "bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)]"
-                          : "bg-white/[0.06] text-white/40 hover:bg-white/10 hover:text-white/70"
+                          : "bg-white/6 text-white/40 hover:bg-white/10 hover:text-white/70"
                       }`}
                     >
                       MUTE
@@ -241,7 +241,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
                       className={`rounded-md px-2 py-1 font-mono text-[10px] font-semibold tracking-wide transition-all ${
                         track.is_solo
                           ? "bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.6)]"
-                          : "bg-white/[0.06] text-white/40 hover:bg-white/10 hover:text-white/70"
+                          : "bg-white/6 text-white/40 hover:bg-white/10 hover:text-white/70"
                       }`}
                     >
                       SOLO

@@ -23,7 +23,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   if (!hasHydrated || !isAuthenticated) {
     return (
-      <div className="flex min-h-[100svh] flex-1 items-center justify-center bg-background">
+      <div className="flex min-h-svh flex-1 items-center justify-center bg-background">
         <span className="font-mono text-xs tracking-[0.3em] text-white/40 uppercase">
           Cargando...
         </span>
@@ -32,7 +32,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-[100svh] flex-1 flex-col bg-background">
+    <div className="flex min-h-svh flex-1 flex-col bg-background">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-4 md:px-10">
         <Link href="/dashboard" className="font-mono text-sm tracking-[0.3em] text-white/80 uppercase">
           StudioDesk
