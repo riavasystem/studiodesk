@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 
 export function useHydratedAuth() {
-  const [hasHydrated, setHasHydrated] = useState(useAuthStore.persist.hasHydrated());
+  const [hasHydrated, setHasHydrated] = useState(false);
   const accessToken = useAuthStore((s) => s.accessToken);
 
   useEffect(() => {
