@@ -3,11 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Music2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +21,18 @@ import { useCategories } from "@/hooks/use-categories";
 import { useAlbums } from "@/hooks/use-albums";
 
 const NONE_VALUE = "none";
+
+const COVER_GRADIENTS = [
+  "from-orange-500/30 via-orange-500/10 to-transparent",
+  "from-fuchsia-500/25 via-fuchsia-500/8 to-transparent",
+  "from-sky-500/25 via-sky-500/8 to-transparent",
+  "from-emerald-500/25 via-emerald-500/8 to-transparent",
+  "from-violet-500/25 via-violet-500/8 to-transparent",
+];
+
+function coverGradient(id: number): string {
+  return COVER_GRADIENTS[id % COVER_GRADIENTS.length];
+}
 
 export default function SongsPage() {
   const { data: songs, isLoading } = useSongs();
@@ -66,7 +77,7 @@ export default function SongsPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <div className="flex items-center justify-between">
         <div>
           <p className="font-mono text-xs tracking-[0.3em] text-orange-400 uppercase">Canciones</p>
@@ -135,39 +146,61 @@ export default function SongsPage() {
         </Dialog>
       </div>
 
-      <Card className="border-white/10">
-        <CardHeader>
-          <CardTitle className="text-lg">Todas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading && <p className="text-sm text-white/50">Cargando...</p>}
-          {songs?.length === 0 && <p className="text-sm text-white/50">No hay canciones todavía.</p>}
-          <ul className="divide-y divide-white/10">
-            {songs?.map((song) => (
-              <li key={song.id} className="flex items-center justify-between py-3">
-                <Link href={`/dashboard/songs/${song.id}`} className="flex-1">
-                  <p className="text-sm font-medium text-white hover:text-orange-400">{song.title}</p>
-                  <p className="text-xs text-white/50">
-                    {song.artist}
-                    {song.bpm ? ` · ${song.bpm} BPM` : ""}
-                  </p>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    deleteSong.mutate(song.id, {
-                      onError: () => toast.error("No se pudo eliminar"),
-                    })
-                  }
-                >
-                  <Trash2 className="size-4 text-white/40" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      {isLoading && <p className="text-sm text-white/50">Cargando...</p>}
+      {songs?.length === 0 && <p className="text-sm text-white/50">No hay canciones todavía.</p>}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {songs?.map((song) => (
+          <div
+            key={song.id}
+            className="group relative overflow-hidden rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_50px_-25px_rgba(0,0,0,0.9)] transition-transform hover:-translate-y-0.5"
+          >
+            <Link href={`/dashboard/songs/${song.id}`} className="block">
+              <div
+                className={`relative flex h-28 items-center justify-center bg-linear-to-br ${coverGradient(song.id)} border-b border-white/6`}
+              >
+                <Music2 className="size-8 text-white/30" strokeWidth={1.5} />
+                {song.musical_key && (
+                  <span className="absolute top-2.5 right-2.5 rounded-full border border-white/15 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white/70 backdrop-blur">
+                    {song.musical_key}
+                  </span>
+                )}
+              </div>
+              <div className="p-4">
+                <p className="truncate text-sm font-semibold text-white group-hover:text-orange-400">
+                  {song.title}
+                </p>
+                <p className="truncate text-xs text-white/45">{song.artist}</p>
+                <div className="mt-3 flex items-center gap-1.5">
+                  {song.bpm && (
+                    <span className="rounded-full border border-white/8 bg-white/6 px-2 py-0.5 font-mono text-[10px] text-white/50">
+                      {song.bpm} BPM
+                    </span>
+                  )}
+                  {song.duration_seconds && (
+                    <span className="rounded-full border border-white/8 bg-white/6 px-2 py-0.5 font-mono text-[10px] text-white/50">
+                      {Math.floor(song.duration_seconds / 60)}:
+                      {String(Math.floor(song.duration_seconds % 60)).padStart(2, "0")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2.5 left-2.5 bg-black/40 text-white/50 opacity-0 backdrop-blur transition-opacity hover:text-red-400 group-hover:opacity-100"
+              onClick={() =>
+                deleteSong.mutate(song.id, {
+                  onError: () => toast.error("No se pudo eliminar"),
+                })
+              }
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

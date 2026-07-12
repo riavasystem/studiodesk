@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { TrackWaveform } from "@/components/player/track-waveform";
-import { LevelMeter } from "@/components/player/level-meter";
+import { VerticalMeter } from "@/components/player/vertical-meter";
 import { useMultitrackPlayer } from "@/hooks/use-multitrack-player";
 import type { ITrack } from "@/hooks/use-tracks";
 
@@ -64,6 +64,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
   if (tracks.length === 0) return null;
 
   const anySolo = tracks.some((t) => t.is_solo);
+  const progressRatio = player.duration ? Math.min(player.currentTime / player.duration, 1) : 0;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-sm">
@@ -78,6 +79,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
       </div>
 
       <div className="flex flex-col gap-6 p-5">
+        {/* Transport */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-1.5 rounded-xl border border-white/6 bg-black/30 p-1.5 shadow-inner">
             <Button
@@ -117,15 +119,66 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
           </span>
         </div>
 
-        <Slider
-          min={0}
-          max={player.duration || 1}
-          step={0.1}
-          value={[Math.min(player.currentTime, player.duration || 1)]}
-          onValueChange={(value) => player.seekTo(Array.isArray(value) ? value[0] : value)}
-          disabled={!player.isReady}
-        />
+        {/* Timeline / arrangement view: ruler + stacked synced waveforms */}
+        <div className="overflow-hidden rounded-xl border border-white/6 bg-black/25">
+          <div className="relative h-6 border-b border-white/6 bg-black/20">
+            <div
+              className="absolute inset-y-0 left-0 bg-orange-500/10"
+              style={{ width: `${progressRatio * 100}%` }}
+            />
+            <div
+              className="absolute inset-y-0 flex items-center"
+              style={{
+                left: `${progressRatio * 100}%`,
+                transform: "translateX(-1px)",
+              }}
+            >
+              <div className="h-full w-px bg-orange-400 shadow-[0_0_6px_rgba(255,138,31,0.8)]" />
+            </div>
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(to right, rgba(255,255,255,0.12) 0, rgba(255,255,255,0.12) 1px, transparent 1px, transparent calc(100% / 20))",
+              }}
+            />
+          </div>
+          <div className="flex flex-col divide-y divide-white/[0.04]">
+            {tracks.map((track) => {
+              const url = player.trackUrls.get(track.id);
+              return (
+                <div key={track.id} className="flex items-center gap-3 px-3 py-1.5">
+                  <span className="w-20 shrink-0 truncate font-mono text-[10px] tracking-wide text-white/40 uppercase">
+                    {track.name}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    {url && (
+                      <TrackWaveform
+                        url={url}
+                        currentTime={player.currentTime}
+                        duration={player.duration}
+                        isMuted={track.is_muted}
+                        onSeek={player.seekTo}
+                        height={28}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <Slider
+            className="px-3 pb-3"
+            min={0}
+            max={player.duration || 1}
+            step={0.1}
+            value={[Math.min(player.currentTime, player.duration || 1)]}
+            onValueChange={(value) => player.seekTo(Array.isArray(value) ? value[0] : value)}
+            disabled={!player.isReady}
+          />
+        </div>
 
+        {/* Tempo / Pitch */}
         <div className="flex flex-wrap gap-x-8 gap-y-4 rounded-xl border border-white/6 bg-black/20 p-4">
           <div className="flex min-w-48 flex-1 items-center gap-3">
             <Label className="w-14 font-mono text-[10px] tracking-widest text-white/40 uppercase">Tempo</Label>
@@ -157,6 +210,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
           </div>
         </div>
 
+        {/* Markers */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] tracking-widest text-white/40 uppercase">Marcadores</span>
@@ -201,34 +255,58 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 border-t border-white/6 pt-5 sm:grid-cols-2">
-          {tracks.map((track) => {
-            const url = player.trackUrls.get(track.id);
-            const level = player.trackLevels.get(track.id) ?? 0;
-            const audible = anySolo ? track.is_solo : !track.is_muted;
+        {/* Channel rack: hardware-style vertical fader strips */}
+        <div className="border-t border-white/6 pt-5">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {tracks.map((track) => {
+              const level = player.trackLevels.get(track.id) ?? 0;
+              const audible = anySolo ? track.is_solo : !track.is_muted;
 
-            return (
-              <div
-                key={track.id}
-                className={`flex flex-col gap-3 rounded-xl border p-4 transition-colors ${
-                  audible && player.isPlaying
-                    ? "border-orange-400/20 bg-linear-to-b from-orange-400/4 to-white/2"
-                    : "border-white/6 bg-white/1.5"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
+              return (
+                <div
+                  key={track.id}
+                  className={`flex w-24 shrink-0 flex-col items-center gap-3 rounded-xl border p-3 transition-colors ${
+                    audible && player.isPlaying
+                      ? "border-orange-400/20 bg-linear-to-b from-orange-400/4 to-white/2"
+                      : "border-white/6 bg-white/[0.015]"
+                  }`}
+                >
+                  <div className="flex w-full items-center justify-center gap-1.5">
                     <span
-                      className={`size-1.5 rounded-full ${
-                        audible && player.isPlaying ? "bg-orange-400 shadow-[0_0_8px_rgba(255,138,31,0.8)]" : "bg-white/15"
+                      className={`size-1.5 shrink-0 rounded-full ${
+                        audible && player.isPlaying
+                          ? "bg-orange-400 shadow-[0_0_8px_rgba(255,138,31,0.8)]"
+                          : "bg-white/15"
                       }`}
                     />
-                    <span className="text-sm font-medium text-white">{track.name}</span>
+                    <span className="w-full truncate text-center text-[11px] font-medium text-white" title={track.name}>
+                      {track.name}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+
+                  <div className="flex h-40 items-stretch gap-2">
+                    <VerticalMeter level={level} active={audible} />
+                    <Slider
+                      orientation="vertical"
+                      className="h-full"
+                      min={0}
+                      max={2}
+                      step={0.01}
+                      value={[track.volume]}
+                      onValueChange={(value) =>
+                        setMix(track.id, { volume: Array.isArray(value) ? value[0] : value })
+                      }
+                    />
+                  </div>
+
+                  <span className="font-mono text-[10px] tabular-nums text-white/40">
+                    {Math.round(track.volume * 100)}%
+                  </span>
+
+                  <div className="flex w-full flex-col gap-1">
                     <button
                       onClick={() => setMix(track.id, { is_muted: !track.is_muted })}
-                      className={`rounded-md px-2 py-1 font-mono text-[10px] font-semibold tracking-wide transition-all ${
+                      className={`w-full rounded-md py-1 font-mono text-[10px] font-semibold tracking-wide transition-all ${
                         track.is_muted
                           ? "bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)]"
                           : "bg-white/6 text-white/40 hover:bg-white/10 hover:text-white/70"
@@ -238,7 +316,7 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
                     </button>
                     <button
                       onClick={() => setMix(track.id, { is_solo: !track.is_solo })}
-                      className={`rounded-md px-2 py-1 font-mono text-[10px] font-semibold tracking-wide transition-all ${
+                      className={`w-full rounded-md py-1 font-mono text-[10px] font-semibold tracking-wide transition-all ${
                         track.is_solo
                           ? "bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.6)]"
                           : "bg-white/6 text-white/40 hover:bg-white/10 hover:text-white/70"
@@ -248,34 +326,9 @@ export function MultitrackPlayer({ tracks, onUpdateTrack }: IMultitrackPlayerPro
                     </button>
                   </div>
                 </div>
-
-                {url && (
-                  <TrackWaveform
-                    url={url}
-                    currentTime={player.currentTime}
-                    duration={player.duration}
-                    isMuted={track.is_muted}
-                    onSeek={player.seekTo}
-                  />
-                )}
-
-                <div className="flex items-center gap-3">
-                  <LevelMeter level={level} active={audible} />
-                  <Slider
-                    className="flex-1"
-                    min={0}
-                    max={2}
-                    step={0.01}
-                    value={[track.volume]}
-                    onValueChange={(value) => setMix(track.id, { volume: Array.isArray(value) ? value[0] : value })}
-                  />
-                  <span className="w-9 text-right font-mono text-[10px] tabular-nums text-white/40">
-                    {Math.round(track.volume * 100)}%
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

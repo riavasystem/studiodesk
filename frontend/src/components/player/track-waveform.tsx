@@ -9,9 +9,10 @@ interface ITrackWaveformProps {
   duration: number;
   isMuted: boolean;
   onSeek: (seconds: number) => void;
+  height?: number;
 }
 
-export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek }: ITrackWaveformProps) {
+export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek, height = 48 }: ITrackWaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
@@ -21,7 +22,7 @@ export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek }: I
     const wavesurfer = WaveSurfer.create({
       container: containerRef.current,
       url,
-      height: 48,
+      height,
       waveColor: "rgba(255,255,255,0.25)",
       progressColor: "#ff8a1f",
       cursorColor: "transparent",
