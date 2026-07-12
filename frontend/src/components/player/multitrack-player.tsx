@@ -44,6 +44,23 @@ interface IMultitrackPlayerProps {
 export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultitrackPlayerProps) {
   const player = useMultitrackPlayer(tracks);
   const [markerLabel, setMarkerLabel] = useState("");
+  const [editingTrackId, setEditingTrackId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  const commitRename = (track: ITrack) => {
+    const name = editingName.trim();
+    setEditingTrackId(null);
+    if (!name || name === track.name) return;
+    onUpdateTrack({
+      id: track.id,
+      name,
+      file_path: track.file_path,
+      order_index: track.order_index,
+      volume: track.volume,
+      is_muted: track.is_muted,
+      is_solo: track.is_solo,
+    });
+  };
 
   const setMix = (id: number, patch: Partial<Pick<ITrack, "volume" | "is_muted" | "is_solo">>) => {
     const target = tracks.find((t) => t.id === id);
@@ -273,16 +290,28 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
                     : "border-white/6 bg-white/[0.015]"
                 }`}
               >
-                <button
-                  onClick={() => setMix(track.id, { is_solo: !track.is_solo })}
-                  className={`flex size-6 items-center justify-center rounded-full border font-mono text-[10px] font-bold transition-all ${
-                    track.is_solo
-                      ? "border-amber-400 bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.6)]"
-                      : "border-white/15 text-white/40 hover:border-white/30 hover:text-white/70"
-                  }`}
-                >
-                  S
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setMix(track.id, { is_solo: !track.is_solo })}
+                    className={`flex size-6 items-center justify-center rounded-full border font-mono text-[10px] font-bold transition-all ${
+                      track.is_solo
+                        ? "border-amber-400 bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.6)]"
+                        : "border-white/15 text-white/40 hover:border-white/30 hover:text-white/70"
+                    }`}
+                  >
+                    S
+                  </button>
+                  <button
+                    onClick={() => setMix(track.id, { is_muted: !track.is_muted })}
+                    className={`flex size-6 items-center justify-center rounded-full border font-mono text-[10px] font-bold transition-all ${
+                      track.is_muted
+                        ? "border-red-500 bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                        : "border-white/15 text-white/40 hover:border-white/30 hover:text-white/70"
+                    }`}
+                  >
+                    M
+                  </button>
+                </div>
 
                 <div className="flex h-36 items-stretch gap-2">
                   <VerticalMeter level={level} active={audible} />
@@ -302,15 +331,32 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setMix(track.id, { is_muted: !track.is_muted })}
-                  className={`w-full truncate text-center text-[10px] font-medium transition-colors ${
-                    track.is_muted ? "text-white/25 line-through" : "text-white/70 hover:text-white"
-                  }`}
-                  title={track.name}
-                >
-                  {track.name}
-                </button>
+                {editingTrackId === track.id ? (
+                  <input
+                    autoFocus
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onBlur={() => commitRename(track)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename(track);
+                      if (e.key === "Escape") setEditingTrackId(null);
+                    }}
+                    className="w-full rounded border border-orange-400/40 bg-black/40 px-1 text-center text-[10px] text-white outline-none"
+                  />
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingTrackId(track.id);
+                      setEditingName(track.name);
+                    }}
+                    className={`w-full truncate text-center text-[10px] font-medium transition-colors ${
+                      track.is_muted ? "text-white/25 line-through" : "text-white/70 hover:text-white"
+                    }`}
+                    title={`${track.name} · click para renombrar`}
+                  >
+                    {track.name}
+                  </button>
+                )}
               </div>
             );
           })}

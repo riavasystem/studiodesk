@@ -23,11 +23,16 @@ export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek, hei
       container: containerRef.current,
       url,
       height,
-      waveColor: "rgba(255,255,255,0.25)",
+      waveColor: "rgba(255,255,255,0.45)",
       progressColor: "#ff8a1f",
-      cursorColor: "transparent",
+      cursorColor: "rgba(255,255,255,0.6)",
+      cursorWidth: 1,
+      barWidth: 2,
+      barGap: 1,
+      barRadius: 1,
       interact: true,
       normalize: true,
+      fillParent: true,
     });
     wavesurfer.setMuted(true);
     wavesurfer.on("interaction", (time) => onSeek(time));
@@ -47,8 +52,11 @@ export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek, hei
   }, [currentTime, duration]);
 
   return (
-    <div className={isMuted ? "opacity-40 transition-opacity" : "transition-opacity"}>
-      <div ref={containerRef} />
+    <div
+      className={`w-full ${isMuted ? "opacity-40 transition-opacity" : "transition-opacity"}`}
+      style={{ minHeight: height }}
+    >
+      <div ref={containerRef} className="w-full" style={{ minHeight: height }} />
     </div>
   );
 }
