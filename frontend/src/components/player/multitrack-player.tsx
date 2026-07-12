@@ -2,12 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Music2, Pause, Play, Plus, Repeat, Square, X } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronRight, Music2, Pause, Play, Plus, Repeat, Square, X, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { VerticalMeter } from "@/components/player/vertical-meter";
 import { TrackWaveform } from "@/components/player/track-waveform";
+import { ChannelStrip } from "@/components/player/channel-strip";
+import { MasterStrip } from "@/components/player/master-strip";
+import { PlayerSidebar, type PlayerPanel } from "@/components/player/player-sidebar";
+import { LyricsPanel } from "@/components/player/lyrics-panel";
 import { useMultitrackPlayer } from "@/hooks/use-multitrack-player";
+import { useCreateMarker, useDeleteMarker, useMarkers, MARKER_TYPE_COLORS, type MarkerType } from "@/hooks/use-markers";
+import { useLyrics } from "@/hooks/use-lyrics";
 import type { ITrack } from "@/hooks/use-tracks";
 import type { ISong } from "@/hooks/use-songs";
 
@@ -18,12 +24,19 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const MARKER_COLORS = [
-  "border-sky-400/40 bg-sky-400/15 text-sky-300",
-  "border-emerald-400/40 bg-emerald-400/15 text-emerald-300",
-  "border-violet-400/40 bg-violet-400/15 text-violet-300",
-  "border-orange-400/40 bg-orange-400/15 text-orange-300",
-  "border-fuchsia-400/40 bg-fuchsia-400/15 text-fuchsia-300",
+const CHANNEL_COLORS = ["#ff8a1f", "#38bdf8", "#34d399", "#a78bfa", "#f472b6", "#facc15", "#fb7185", "#22d3ee"];
+
+const MARKER_TYPE_OPTIONS: MarkerType[] = [
+  "intro",
+  "verse",
+  "prechorus",
+  "chorus",
+  "bridge",
+  "solo",
+  "outro",
+  "ending",
+  "cue",
+  "click",
 ];
 
 interface IMultitrackPlayerProps {
@@ -36,29 +49,42 @@ interface IMultitrackPlayerProps {
     file_path: string;
     order_index: number;
     volume: number;
+    pan: number;
     is_muted: boolean;
     is_solo: boolean;
+    is_phase_inverted: boolean;
+    color: string;
   }) => void;
 }
 
 export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultitrackPlayerProps) {
   const player = useMultitrackPlayer(tracks);
-  const [markerLabel, setMarkerLabel] = useState("");
-  const [editingTrackId, setEditingTrackId] = useState<number | null>(null);
-  const [editingName, setEditingName] = useState("");
+  const { data: markers } = useMarkers(song.id);
+  const createMarker = useCreateMarker(song.id);
+  const deleteMarker = useDeleteMarker(song.id);
+  const { data: lyrics } = useLyrics(song.id);
 
-  const commitRename = (track: ITrack) => {
-    const name = editingName.trim();
-    setEditingTrackId(null);
-    if (!name || name === track.name) return;
+  const [markerLabel, setMarkerLabel] = useState("");
+  const [markerType, setMarkerType] = useState<MarkerType>("cue");
+  const [zoom, setZoom] = useState(0);
+  const [panel, setPanel] = useState<PlayerPanel>("mixer");
+  const [armedTracks, setArmedTracks] = useState<Set<number>>(new Set());
+  const [loopA, setLoopA] = useState<number | null>(null);
+  const [loopB, setLoopB] = useState<number | null>(null);
+
+  const buildPayload = (track: ITrack, patch: Partial<ITrack>) => {
+    const updated = { ...track, ...patch };
     onUpdateTrack({
-      id: track.id,
-      name,
-      file_path: track.file_path,
-      order_index: track.order_index,
-      volume: track.volume,
-      is_muted: track.is_muted,
-      is_solo: track.is_solo,
+      id: updated.id,
+      name: updated.name,
+      file_path: updated.file_path,
+      order_index: updated.order_index,
+      volume: updated.volume,
+      pan: updated.pan,
+      is_muted: updated.is_muted,
+      is_solo: updated.is_solo,
+      is_phase_inverted: updated.is_phase_inverted,
+      color: updated.color,
     });
   };
 
@@ -77,15 +103,15 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         ),
       );
     }
+    buildPayload(target, patch);
+  };
 
-    onUpdateTrack({
-      id: updated.id,
-      name: updated.name,
-      file_path: updated.file_path,
-      order_index: updated.order_index,
-      volume: updated.volume,
-      is_muted: updated.is_muted,
-      is_solo: updated.is_solo,
+  const toggleArm = (id: number) => {
+    setArmedTracks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   };
 
@@ -100,6 +126,11 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
           <span className="font-mono text-2xl font-bold text-white tabular-nums">{song.bpm ?? "--"}</span>
           <span className="font-mono text-[10px] tracking-widest text-white/40 uppercase">bpm</span>
         </div>
+        {song.musical_key && (
+          <span className="rounded-md border border-white/6 bg-black/30 px-2 py-1 font-mono text-xs text-white/60">
+            Key {song.musical_key}
+          </span>
+        )}
 
         <div className="h-9 w-px bg-white/8" />
 
@@ -140,6 +171,7 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
             }`}
             onClick={() => player.setLoop(!player.loop)}
             disabled={!player.isReady}
+            title="Loop infinito"
           >
             <Repeat className="size-4" />
           </Button>
@@ -210,35 +242,57 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
 
       {/* Arrangement: markers + main waveform */}
       <div className="rounded-2xl border border-white/6 bg-black/25">
-        <div className="flex items-center gap-1 overflow-x-auto px-4 pt-3 pb-2">
-          {player.markers.map((marker, i) => (
-            <div key={marker.time} className="flex shrink-0 items-center gap-1">
-              <button
-                onClick={() => player.seekTo(marker.time)}
-                className={`group flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${MARKER_COLORS[i % MARKER_COLORS.length]}`}
-              >
-                {marker.label}
-                <X
-                  className="size-3 opacity-0 group-hover:opacity-70"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    player.removeMarker(marker.time);
-                  }}
-                />
-              </button>
-              {i < player.markers.length - 1 && <ChevronRight className="size-3 shrink-0 text-white/15" />}
-            </div>
+        <div className="flex flex-wrap items-center gap-1 overflow-x-auto px-4 pt-3 pb-2">
+          {markers?.map((marker) => (
+            <button
+              key={marker.id}
+              onClick={() => player.seekTo(marker.position_seconds)}
+              className="group flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
+              style={{
+                borderColor: `${marker.color}66`,
+                backgroundColor: `${marker.color}22`,
+                color: marker.color,
+              }}
+            >
+              {marker.label}
+              <X
+                className="size-3 opacity-0 group-hover:opacity-70"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteMarker.mutate(marker.id, { onError: () => toast.error("No se pudo borrar el marcador") });
+                }}
+              />
+            </button>
           ))}
           <div className="flex shrink-0 items-center gap-1.5 pl-1">
+            <select
+              value={markerType}
+              onChange={(e) => setMarkerType(e.target.value as MarkerType)}
+              className="h-6 rounded-md border border-white/6 bg-black/20 px-1 text-[11px] text-white outline-none"
+            >
+              {MARKER_TYPE_OPTIONS.map((type) => (
+                <option key={type} value={type} className="bg-black">
+                  {type}
+                </option>
+              ))}
+            </select>
             <input
               className="h-6 w-28 rounded-md border border-white/6 bg-black/20 px-2 text-[11px] text-white outline-none placeholder:text-white/25 focus:border-orange-400/40"
-              placeholder="Sección..."
+              placeholder="Nombre..."
               value={markerLabel}
               onChange={(e) => setMarkerLabel(e.target.value)}
             />
             <button
               onClick={() => {
-                player.addMarker(markerLabel || `Marca ${player.markers.length + 1}`, player.currentTime);
+                createMarker.mutate(
+                  {
+                    label: markerLabel || markerType,
+                    marker_type: markerType,
+                    color: MARKER_TYPE_COLORS[markerType],
+                    position_seconds: player.currentTime,
+                  },
+                  { onError: () => toast.error("No se pudo crear el marcador") },
+                );
                 setMarkerLabel("");
               }}
               disabled={!player.isReady}
@@ -247,9 +301,45 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
               <Plus className="size-3.5" />
             </button>
           </div>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => setLoopA(player.currentTime)}
+              className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopA !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
+            >
+              A {loopA !== null ? formatTime(loopA) : ""}
+            </button>
+            <button
+              onClick={() => setLoopB(player.currentTime)}
+              className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopB !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
+            >
+              B {loopB !== null ? formatTime(loopB) : ""}
+            </button>
+            <button
+              onClick={() => {
+                if (loopA === null || loopB === null) return;
+                player.setLoop(!player.loop, Math.min(loopA, loopB), Math.max(loopA, loopB));
+              }}
+              disabled={loopA === null || loopB === null}
+              className="rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-mono text-[10px] text-cyan-300 disabled:opacity-30"
+            >
+              Loop A-B
+            </button>
+            <div className="flex items-center gap-1.5">
+              <ZoomIn className="size-3.5 text-white/30" />
+              <Slider
+                className="w-24"
+                min={0}
+                max={200}
+                step={5}
+                value={[zoom]}
+                onValueChange={(value) => setZoom(Array.isArray(value) ? value[0] : value)}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="px-4 pb-4">
+        <div className="overflow-x-auto px-4 pb-4">
           {mainUrl && (
             <TrackWaveform
               url={mainUrl}
@@ -258,131 +348,77 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
               isMuted={false}
               onSeek={player.seekTo}
               height={72}
+              zoom={zoom}
             />
-          )}
-          {player.duration > 0 && (
-            <div className="relative mt-1 h-2">
-              {player.markers.map((marker, i) => (
-                <span
-                  key={marker.time}
-                  className={`absolute top-0 size-1.5 -translate-x-1/2 rounded-full ${MARKER_COLORS[i % MARKER_COLORS.length].split(" ")[1].replace("/15", "")}`}
-                  style={{ left: `${(marker.time / player.duration) * 100}%` }}
-                />
-              ))}
-            </div>
           )}
         </div>
       </div>
 
-      {/* Channel rack + master */}
-      <div className="rounded-2xl border border-white/6 bg-black/20 p-4">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {tracks.map((track) => {
-            const level = player.trackLevels.get(track.id) ?? 0;
-            const audible = anySolo ? track.is_solo : !track.is_muted;
+      {/* Sidebar + panel */}
+      <div className="flex items-start gap-3">
+        <PlayerSidebar
+          panel={panel}
+          onPanelChange={setPanel}
+          metronomeOn={player.metronomeOn}
+          onToggleMetronome={() => player.setMetronomeOn(!player.metronomeOn)}
+        />
 
-            return (
-              <div
-                key={track.id}
-                className={`flex w-20 shrink-0 flex-col items-center gap-2.5 rounded-xl border p-2.5 transition-colors ${
-                  audible && player.isPlaying
-                    ? "border-orange-400/20 bg-linear-to-b from-orange-400/4 to-white/2"
-                    : "border-white/6 bg-white/[0.015]"
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setMix(track.id, { is_solo: !track.is_solo })}
-                    className={`flex size-6 items-center justify-center rounded-full border font-mono text-[10px] font-bold transition-all ${
-                      track.is_solo
-                        ? "border-amber-400 bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.6)]"
-                        : "border-white/15 text-white/40 hover:border-white/30 hover:text-white/70"
-                    }`}
-                  >
-                    S
-                  </button>
-                  <button
-                    onClick={() => setMix(track.id, { is_muted: !track.is_muted })}
-                    className={`flex size-6 items-center justify-center rounded-full border font-mono text-[10px] font-bold transition-all ${
-                      track.is_muted
-                        ? "border-red-500 bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)]"
-                        : "border-white/15 text-white/40 hover:border-white/30 hover:text-white/70"
-                    }`}
-                  >
-                    M
-                  </button>
-                </div>
-
-                <div className="flex h-36 items-stretch gap-2">
-                  <VerticalMeter level={level} active={audible} />
-                  <div className="relative h-full">
-                    <div className="pointer-events-none absolute inset-x-0 top-1/4 z-10 h-px bg-emerald-400/40" />
-                    <Slider
-                      orientation="vertical"
-                      className="h-full"
-                      min={0}
-                      max={2}
-                      step={0.01}
-                      value={[track.volume]}
-                      onValueChange={(value) =>
-                        setMix(track.id, { volume: Array.isArray(value) ? value[0] : value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                {editingTrackId === track.id ? (
-                  <input
-                    autoFocus
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={() => commitRename(track)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRename(track);
-                      if (e.key === "Escape") setEditingTrackId(null);
-                    }}
-                    className="w-full rounded border border-orange-400/40 bg-black/40 px-1 text-center text-[10px] text-white outline-none"
-                  />
-                ) : (
-                  <button
-                    onClick={() => {
-                      setEditingTrackId(track.id);
-                      setEditingName(track.name);
-                    }}
-                    className={`w-full truncate text-center text-[10px] font-medium transition-colors ${
-                      track.is_muted ? "text-white/25 line-through" : "text-white/70 hover:text-white"
-                    }`}
-                    title={`${track.name} · click para renombrar`}
-                  >
-                    {track.name}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-
-          <div className="mx-1 w-px shrink-0 bg-white/8" />
-
-          <div className="flex w-20 shrink-0 flex-col items-center gap-2.5 rounded-xl border border-white/8 bg-white/2 p-2.5">
-            <span className="font-mono text-[10px] font-bold text-white/50">M</span>
-            <div className="flex h-36 items-stretch gap-2">
-              <VerticalMeter level={player.masterLevel} active={player.isPlaying} />
-              <div className="relative h-full">
-                <div className="pointer-events-none absolute inset-x-0 top-1/4 z-10 h-px bg-emerald-400/40" />
-                <Slider
-                  orientation="vertical"
-                  className="h-full"
-                  min={0}
-                  max={1.5}
-                  step={0.01}
-                  value={[player.masterVolume]}
-                  onValueChange={(value) => player.setMasterVolume(Array.isArray(value) ? value[0] : value)}
-                />
-              </div>
-            </div>
-            <span className="w-full truncate text-center text-[10px] font-medium text-white/70">Master</span>
+        {panel === "lyrics" ? (
+          <div className="flex-1">
+            <LyricsPanel lines={lyrics ?? []} currentTime={player.currentTime} onSeek={player.seekTo} />
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 rounded-2xl border border-white/6 bg-black/20 p-4">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {tracks.map((track, i) => {
+                const level = player.trackLevels.get(track.id) ?? 0;
+                const audible = anySolo ? track.is_solo : !track.is_muted;
+
+                return (
+                  <ChannelStrip
+                    key={track.id}
+                    track={track}
+                    color={track.color !== "#ff8a1f" ? track.color : CHANNEL_COLORS[i % CHANNEL_COLORS.length]}
+                    level={level}
+                    db={player.trackDb.get(track.id) ?? -Infinity}
+                    clipping={player.trackClipping.get(track.id) ?? false}
+                    audible={audible}
+                    isPlaying={player.isPlaying}
+                    armed={armedTracks.has(track.id)}
+                    onToggleArm={() => toggleArm(track.id)}
+                    onToggleMute={() => setMix(track.id, { is_muted: !track.is_muted })}
+                    onToggleSolo={() => setMix(track.id, { is_solo: !track.is_solo })}
+                    onVolumeChange={(value) => setMix(track.id, { volume: value })}
+                    onPanChange={(value) => {
+                      player.setTrackPan(track.id, value);
+                      buildPayload(track, { pan: value });
+                    }}
+                    onPhaseToggle={() => {
+                      const inverted = !track.is_phase_inverted;
+                      player.setTrackPhaseInverted(track.id, inverted);
+                      buildPayload(track, { is_phase_inverted: inverted });
+                    }}
+                    onEQChange={(band) => player.setTrackEQ(track.id, band)}
+                    onCompressorToggle={(enabled) => player.setTrackCompressor(track.id, { enabled })}
+                    onReverbSendChange={(value) => player.setTrackReverbSend(track.id, value)}
+                    onRename={(name) => buildPayload(track, { name })}
+                  />
+                );
+              })}
+
+              <div className="mx-1 w-px shrink-0 bg-white/8" />
+
+              <MasterStrip
+                volume={player.masterVolume}
+                level={player.masterLevel}
+                db={player.masterDb}
+                clipping={player.masterClipping}
+                isPlaying={player.isPlaying}
+                onVolumeChange={player.setMasterVolume}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

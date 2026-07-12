@@ -3,11 +3,6 @@ import { apiFetchBlob } from "@/lib/api-client";
 import { MultitrackEngine } from "@/lib/multitrack-engine";
 import type { ITrack } from "@/hooks/use-tracks";
 
-export interface IMarker {
-  label: string;
-  time: number;
-}
-
 export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   const engineRef = useRef<MultitrackEngine | null>(null);
   const objectUrlsRef = useRef<string[]>([]);
@@ -21,11 +16,15 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   const [loop, setLoopState] = useState(false);
   const [tempo, setTempoState] = useState(1);
   const [pitch, setPitchState] = useState(0);
-  const [markers, setMarkers] = useState<IMarker[]>([]);
+  const [metronomeOn, setMetronomeOnState] = useState(false);
   const [trackUrls, setTrackUrls] = useState<Map<number, string>>(new Map());
   const [trackLevels, setTrackLevels] = useState<Map<number, number>>(new Map());
+  const [trackDb, setTrackDb] = useState<Map<number, number>>(new Map());
+  const [trackClipping, setTrackClipping] = useState<Map<number, boolean>>(new Map());
   const [masterVolume, setMasterVolumeState] = useState(1);
   const [masterLevel, setMasterLevel] = useState(0);
+  const [masterDb, setMasterDb] = useState(-Infinity);
+  const [masterClipping, setMasterClipping] = useState(false);
 
   if (!engineRef.current) engineRef.current = new MultitrackEngine();
 
@@ -58,8 +57,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
           id: t.id,
           url: urls[i],
           volume: t.volume,
+          pan: t.pan,
           isMuted: t.is_muted,
           isSolo: t.is_solo,
+          isPhaseInverted: t.is_phase_inverted,
         })),
       );
       if (cancelled) return;
@@ -91,10 +92,12 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
       if (engine) {
         setCurrentTime(engine.currentTime);
         setIsPlaying(engine.isPlaying);
-        setTrackLevels(
-          new Map(trackIdListRef.current.map((id) => [id, engine.getTrackLevel(id)])),
-        );
+        setTrackLevels(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackLevel(id)])));
+        setTrackDb(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackDb(id)])));
+        setTrackClipping(new Map(trackIdListRef.current.map((id) => [id, engine.isTrackClipping(id)])));
         setMasterLevel(engine.getMasterLevel());
+        setMasterDb(engine.getMasterDb());
+        setMasterClipping(engine.isMasterClipping());
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -112,13 +115,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   }, []);
   const seekTo = useCallback((seconds: number) => engineRef.current?.seekTo(seconds), []);
 
-  const setLoop = useCallback(
-    (value: boolean) => {
-      setLoopState(value);
-      engineRef.current?.setLoop(value);
-    },
-    [],
-  );
+  const setLoop = useCallback((value: boolean, start?: number, end?: number) => {
+    setLoopState(value);
+    engineRef.current?.setLoop(value, start, end);
+  }, []);
 
   const setTempo = useCallback((value: number) => {
     setTempoState(value);
@@ -134,6 +134,29 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     engineRef.current?.setTrackVolume(id, volume);
   }, []);
 
+  const setTrackPan = useCallback((id: number, pan: number) => {
+    engineRef.current?.setTrackPan(id, pan);
+  }, []);
+
+  const setTrackPhaseInverted = useCallback((id: number, inverted: boolean) => {
+    engineRef.current?.setTrackPhaseInverted(id, inverted);
+  }, []);
+
+  const setTrackEQ = useCallback((id: number, band: { low?: number; mid?: number; high?: number }) => {
+    engineRef.current?.setTrackEQ(id, band);
+  }, []);
+
+  const setTrackCompressor = useCallback(
+    (id: number, options: { enabled: boolean; threshold?: number; ratio?: number }) => {
+      engineRef.current?.setTrackCompressor(id, options);
+    },
+    [],
+  );
+
+  const setTrackReverbSend = useCallback((id: number, level: number) => {
+    engineRef.current?.setTrackReverbSend(id, level);
+  }, []);
+
   const setTrackMixState = useCallback((mixTracks: { id: number; isMuted: boolean; isSolo: boolean }[]) => {
     engineRef.current?.setTrackMixState(mixTracks);
   }, []);
@@ -143,12 +166,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     engineRef.current?.setMasterVolume(value);
   }, []);
 
-  const addMarker = useCallback((label: string, time: number) => {
-    setMarkers((prev) => [...prev, { label, time }].sort((a, b) => a.time - b.time));
-  }, []);
-
-  const removeMarker = useCallback((time: number) => {
-    setMarkers((prev) => prev.filter((m) => m.time !== time));
+  const setMetronomeOn = useCallback((value: boolean) => {
+    setMetronomeOnState(value);
+    engineRef.current?.setMetronome(value);
   }, []);
 
   return {
@@ -160,11 +180,16 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     loop,
     tempo,
     pitch,
-    markers,
+    metronomeOn,
+    setMetronomeOn,
     trackUrls,
     trackLevels,
+    trackDb,
+    trackClipping,
     masterVolume,
     masterLevel,
+    masterDb,
+    masterClipping,
     setMasterVolume,
     play,
     pause,
@@ -174,8 +199,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     setTempo,
     setPitch,
     setTrackVolume,
+    setTrackPan,
+    setTrackPhaseInverted,
+    setTrackEQ,
+    setTrackCompressor,
+    setTrackReverbSend,
     setTrackMixState,
-    addMarker,
-    removeMarker,
   };
 }

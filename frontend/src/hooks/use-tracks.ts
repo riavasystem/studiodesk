@@ -8,8 +8,11 @@ export interface ITrack {
   file_path: string;
   order_index: number;
   volume: number;
+  pan: number;
   is_muted: boolean;
   is_solo: boolean;
+  is_phase_inverted: boolean;
+  color: string;
   created_at: string;
   updated_at: string;
 }
@@ -31,8 +34,11 @@ interface ITrackInput {
   file_path: string;
   order_index?: number;
   volume?: number;
+  pan?: number;
   is_muted?: boolean;
   is_solo?: boolean;
+  is_phase_inverted?: boolean;
+  color?: string;
 }
 
 export function useTracks(songId: number) {

@@ -26,8 +26,11 @@ interface IMultitrackPlayerLoaderProps {
     file_path: string;
     order_index: number;
     volume: number;
+    pan: number;
     is_muted: boolean;
     is_solo: boolean;
+    is_phase_inverted: boolean;
+    color: string;
   }) => void;
 }
 

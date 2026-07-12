@@ -10,9 +10,18 @@ interface ITrackWaveformProps {
   isMuted: boolean;
   onSeek: (seconds: number) => void;
   height?: number;
+  zoom?: number;
 }
 
-export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek, height = 48 }: ITrackWaveformProps) {
+export function TrackWaveform({
+  url,
+  currentTime,
+  duration,
+  isMuted,
+  onSeek,
+  height = 48,
+  zoom = 0,
+}: ITrackWaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
@@ -50,6 +59,10 @@ export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek, hei
     if (!wavesurfer || !duration) return;
     wavesurfer.seekTo(Math.min(currentTime / duration, 1));
   }, [currentTime, duration]);
+
+  useEffect(() => {
+    if (zoom > 0) wavesurferRef.current?.zoom(zoom);
+  }, [zoom]);
 
   return (
     <div
