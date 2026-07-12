@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.domains.albums.router import router as albums_router
 from app.domains.auth.router import router as auth_router
 from app.domains.categories.router import router as categories_router
+from app.domains.lyrics.router import router as lyrics_router
 from app.domains.playback.router import router as playback_router
 from app.domains.playlists.router import router as playlists_router
 from app.domains.songs.router import router as songs_router
@@ -32,6 +33,7 @@ routers = (
     categories_router,
     storage_router,
     playback_router,
+    lyrics_router,
 )
 
 for domain_router in routers:

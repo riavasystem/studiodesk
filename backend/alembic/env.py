@@ -18,6 +18,8 @@ from app.domains.songs.models import Song  # noqa: E402,F401
 from app.domains.tracks.models import Track  # noqa: E402,F401
 from app.domains.playlists.models import Playlist, PlaylistSong  # noqa: E402,F401
 from app.domains.storage.models import AudioFile  # noqa: E402,F401
+from app.domains.playback.models import SongMarker  # noqa: E402,F401
+from app.domains.lyrics.models import LyricLine  # noqa: E402,F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
