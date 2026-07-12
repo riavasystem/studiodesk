@@ -7,6 +7,7 @@ import { useHydratedAuth } from "@/hooks/use-hydrated-auth";
 import { useAuthStore } from "@/lib/auth-store";
 import { useLogout } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { DashboardNav } from "./dashboard-nav";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -43,6 +44,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
       </header>
+      <DashboardNav />
       <main className="flex-1 px-6 py-10 md:px-10">{children}</main>
     </div>
   );
