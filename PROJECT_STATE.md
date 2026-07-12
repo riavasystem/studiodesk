@@ -8,7 +8,7 @@ Salem Studio
 
 Versión
 
-0.6.0
+0.7.0
 
 Estado
 
@@ -192,6 +192,21 @@ Fixes de tipos por diferencias de API entre `base-ui` (preset shadcn "Nova") y R
 1. `DialogTrigger` no tiene prop `asChild` — usar `render`: `<DialogTrigger render={<Button>X</Button>} />`.
 2. `Select`'s `onValueChange` tiene firma `(value: string | null, ...) => void` — los setters de `useState<string>` no aceptan `null`, hay que envolver: `onValueChange={(value) => setX(value ?? FALLBACK)}`.
 
+## Reproductor multipista — completada (2026-07-12)
+
+Entregado:
+
+- `MultitrackEngine` (`src/lib/multitrack-engine.ts`): motor no-React sobre Tone.js. Un `Tone.Player` por track, todos sincronizados vía `Tone.getTransport()` (`.sync().start(0)`). Cadena de audio por track: `Player → Gain (volumen) → PitchShift (pitch independiente del tempo) → Meter (VU en tiempo real) → Destination`. Tempo controlado con `playbackRate` (afecta velocidad y se compensa con `PitchShift` para pitch independiente). Fade in/out vía las props nativas de `Tone.Player`. Solo/Mute resuelto centralmente (`applySoloState`): si algún track está en solo, se mutean todos los que no lo están.
+- Hook `useMultitrackPlayer` (`src/hooks/use-multitrack-player.ts`): descarga cada pista como blob autenticado (`apiFetchBlob`, nuevo en `api-client.ts`, ya que `GET /storage/{id}` requiere Bearer token y un `<audio src>` normal no puede mandar headers), crea Object URLs, carga el engine y expone estado reactivo (play/pause/stop/seek, loop, tempo, pitch, marcadores client-side, niveles VU por track vía `requestAnimationFrame`).
+- UI (`src/components/player/multitrack-player.tsx`): consola de mezcla premium — transporte, barra de progreso con seek, controles de tempo/pitch, marcadores (agregar/saltar/eliminar), y una fila por track con waveform (WaveSurfer.js, solo visual/silenciado — el audio real lo reproduce Tone.js, WaveSurfer solo se usa para dibujar y sincronizar el cursor), medidor de niveles tipo LED animado en tiempo real, y botones de Mute/Solo iluminados. Cargado con `next/dynamic({ ssr:false })` (`multitrack-player-loader.tsx`) para no tocar Web Audio durante el SSR — mismo patrón ya usado para el hero 3D de la landing.
+- Fix de datos: `track.file_path` pasó de guardar la ruta absoluta del servidor (inútil para el cliente) a guardar el `id` del `AudioFile`, que es lo que espera `GET /storage/{id}`.
+
+Nota de entorno (nueva, dejar registro): en esta sesión `tsc --noEmit` empezó a colgarse indefinidamente en este Mac (mismo patrón Gatekeeper ya documentado, pero esta vez afectando también a `tsc`, no solo a binarios nativos como `psycopg`/SWC). Se validaron los tipos nuevos manualmente contra los `.d.ts` reales de `tone` y `wavesurfer.js` en `node_modules` antes de hacer commit; la validación real de compilación quedó, como en los demás módulos de frontend, en manos del build de Vercel.
+
+Pendiente / decisiones conscientes para v2:
+- Los marcadores son client-side (no persistidos en backend) — el dominio `playback` sigue sin modelo; si se requiere persistencia de marcadores/estado de sesión en vivo, ese es el momento de diseñarlo.
+- El control de Tempo cambia `playbackRate` (afecta duración real de la pista); Pitch es un `PitchShift` independiente en semitonos — cumple el requisito de CLAUDE.md de tener ambos controles por separado.
+
 ---
 
 # Roadmap
@@ -212,9 +227,9 @@ Fixes de tipos por diferencias de API entre `base-ui` (preset shadcn "Nova") y R
 
 ✅ Dashboard
 
-⬜ Reproductor
+✅ Reproductor
 
-⬜ Mixer Profesional
+🟡 Mixer Profesional (mezcla en tiempo real lista; falta persistencia de marcadores/sesión en vivo si se requiere)
 
 ⬜ Administración
 
@@ -246,7 +261,7 @@ Completado: landing pública, autenticación y CRUD completo del dashboard.
 
 Reproductor
 
-Pendiente — módulo actual
+Completado (Tone.js + WaveSurfer.js). Próximo módulo: Administración.
 
 Deploy
 
@@ -400,3 +415,12 @@ v0.6.0
 - Verificado en producción: 4 rutas del dashboard responden HTTP 200.
 - Fixes de tipos por diferencias `base-ui` vs Radix (`DialogTrigger` sin `asChild`, `Select.onValueChange` nullable).
 - Próximo módulo: Reproductor (Tone.js + WaveSurfer.js).
+
+v0.7.0
+
+- Reproductor multipista: motor `MultitrackEngine` sobre Tone.js (Players sincronizados vía Transport, volumen/mute/solo, tempo y pitch independientes, fade in/out, VU meters en tiempo real).
+- UI premium tipo consola de mezcla: transporte, seek, marcadores, waveform por track (WaveSurfer.js, visual) y medidores LED animados.
+- Fix de datos: `track.file_path` ahora guarda el `id` del `AudioFile` (antes guardaba la ruta absoluta del servidor, inútil para el cliente).
+- Nuevo `apiFetchBlob` para descargar audio autenticado (`GET /storage/{id}` requiere Bearer token).
+- Cargado con `next/dynamic({ ssr:false })` para no tocar Web Audio durante SSR.
+- Nota de entorno: `tsc --noEmit` empezó a colgarse indefinidamente en este Mac esta sesión; validación de tipos hecha manualmente contra los `.d.ts` de `tone`/`wavesurfer.js`, validación de build real delegada a Vercel.
