@@ -35,6 +35,16 @@ def delete_playlist(db: Session, playlist: Playlist) -> None:
     db.commit()
 
 
+def list_playlist_songs(db: Session, playlist_id: int) -> list[PlaylistSong]:
+    return list(
+        db.scalars(
+            select(PlaylistSong)
+            .where(PlaylistSong.playlist_id == playlist_id)
+            .order_by(PlaylistSong.order_index)
+        )
+    )
+
+
 def add_song_to_playlist(db: Session, playlist_id: int, item_in: PlaylistSongCreate) -> PlaylistSong:
     item = PlaylistSong(playlist_id=playlist_id, song_id=item_in.song_id, order_index=item_in.order_index)
     db.add(item)

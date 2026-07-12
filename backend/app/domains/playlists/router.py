@@ -19,6 +19,7 @@ from app.domains.playlists.service import (
     delete_playlist,
     get_playlist,
     get_playlist_song,
+    list_playlist_songs,
     list_playlists,
     remove_song_from_playlist,
     update_playlist,
@@ -88,6 +89,16 @@ def delete_playlist_endpoint(
 ):
     playlist = _get_owned_playlist(db, playlist_id, current_user)
     delete_playlist(db, playlist)
+
+
+@router.get("/{playlist_id}/songs", response_model=list[PlaylistSongRead])
+def read_playlist_songs(
+    playlist_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    _get_owned_playlist(db, playlist_id, current_user)
+    return list_playlist_songs(db, playlist_id)
 
 
 @router.post("/{playlist_id}/songs", response_model=PlaylistSongRead, status_code=status.HTTP_201_CREATED)
