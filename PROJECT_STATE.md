@@ -8,7 +8,7 @@ Salem Studio
 
 Versión
 
-0.4.0
+0.5.0
 
 Estado
 
@@ -145,7 +145,24 @@ Estado
 
 # Próximo Módulo
 
-Frontend / Dashboard (autenticación de usuario en el frontend, conectando con `/api/v1/auth`, y la app privada de gestión de canciones/playlists). La landing pública ya quedó completada (ver abajo).
+Dashboard: CRUD de canciones/tracks/playlists/álbumes desde el frontend (hoy el dashboard solo lista canciones, de solo lectura), y eventualmente el Reproductor (Tone.js + WaveSurfer.js).
+
+## Autenticación en el frontend — completada (2026-07-12)
+
+Entregado:
+
+- Cliente API (`src/lib/api-client.ts`): wrapper de `fetch` con refresh automático de JWT en 401, apuntando a `NEXT_PUBLIC_API_URL`.
+- Store de sesión con Zustand + `persist` (`src/lib/auth-store.ts`): `accessToken`, `refreshToken`, `user`, persistido en localStorage.
+- Provider de TanStack Query (`src/app/providers.tsx`) + `Toaster` (sonner) para errores.
+- Hooks: `useLogin`, `useRegister`, `useCurrentUser`, `useLogout` (`src/hooks/use-auth.ts`).
+- Páginas `/login` y `/registro` (shadcn/ui: Card, Input, Label).
+- `/dashboard` protegido: guard client-side que espera la hidratación de Zustand antes de redirigir a `/login`; lista las canciones del usuario vía `/api/v1/songs`.
+- Verificado end-to-end en producción: login real con `contacto@riava.cl` contra `https://api.studiodesk.riava.cl`, token válido, `/users/me` responde, headers CORS correctos para `https://studiodesk.riava.cl`.
+
+Dos bugs de Next.js App Router encontrados y corregidos (dejar registro para no repetirlos):
+
+1. `export const dynamic` (route segment config) no puede exportarse desde un archivo `"use client"` — Next.js lo ignora/falla. Cualquier página que necesite forzar `force-dynamic` debe hacerlo desde un Server Component (layout o page sin `"use client"`), delegando la lógica de cliente a un componente separado.
+2. Nunca llamar a la API de Zustand `persist` (`.persist.hasHydrated()`, etc.) durante el render — solo dentro de `useEffect`. Aunque la ruta sea `force-dynamic`, Next.js igual hace un SSR por request (en Node, sin `localStorage`), y tocar `.persist` durante ese render causó primero un error de build (prerender) y después un 500 en runtime hasta que se corrigió.
 
 ## Landing page pública — completada (2026-07-12)
 
@@ -175,7 +192,7 @@ Nota de entorno (importante para próximas sesiones): en este Mac, `next build` 
 
 ✅ API REST
 
-🟡 Frontend (landing pública lista; falta la app privada/dashboard)
+🟡 Frontend (landing pública + login/registro/dashboard base listos; falta CRUD completo y reproductor)
 
 ⬜ Dashboard
 
@@ -352,3 +369,10 @@ v0.4.0
 - Landing page pública con hero 3D (React Three Fiber + drei), scroll reveal (Framer Motion) y SEO completo.
 - Desplegada y verificada en `https://studiodesk.riava.cl`.
 - Documentado el problema de Gatekeeper con binarios nativos (SWC) que impide correr `next build`/`eslint` localmente en este Mac.
+
+v0.5.0
+
+- Autenticación en el frontend: cliente API, store Zustand persistido, TanStack Query, páginas `/login` y `/registro`, `/dashboard` protegido con listado de canciones.
+- Login end-to-end verificado en producción contra el backend real.
+- Fix: `export const dynamic` no funciona en archivos `"use client"` — layout de `/dashboard` separado en Server Component + client shell.
+- Fix: nunca tocar la API de Zustand `persist` durante el render (solo en `useEffect`) para evitar crashes de build/runtime con SSR.
