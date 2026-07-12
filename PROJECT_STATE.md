@@ -8,7 +8,7 @@ Salem Studio
 
 Versión
 
-0.3.0
+0.4.0
 
 Estado
 
@@ -145,7 +145,19 @@ Estado
 
 # Próximo Módulo
 
-PostgreSQL (ya cubierta en la práctica: PostgreSQL 16 en Hetzner con 7 tablas migradas) → seguir con Storage/Autenticación ya resueltas también → el siguiente hueco real del roadmap es Frontend/Dashboard. En paralelo, por pedido explícito del usuario, se está desarrollando la landing page pública (fuera del orden estricto del roadmap, ver Decisiones Técnicas).
+Frontend / Dashboard (autenticación de usuario en el frontend, conectando con `/api/v1/auth`, y la app privada de gestión de canciones/playlists). La landing pública ya quedó completada (ver abajo).
+
+## Landing page pública — completada (2026-07-12)
+
+Entregado:
+
+- Hero con escena 3D (React Three Fiber + drei): barras tipo ecualizador/mixer animadas con `InstancedMesh`, parallax de cámara según el mouse, cargada con `next/dynamic({ ssr: false })` para no bloquear el LCP.
+- Secciones con scroll reveal vía Framer Motion (`whileInView`, `useScroll`/`useTransform` para parallax de stats).
+- Dirección visual deliberadamente distinta a landings genéricas de IA: dark mode forzado, acento ámbar/naranja (consola de mezcla / luces de escenario) en vez del gradiente morado-azul típico, tipografía editorial con Geist.
+- SEO: metadata completa (OpenGraph, Twitter Card, canonical, keywords) en `layout.tsx`.
+- Desplegada y verificada en `https://studiodesk.riava.cl` (contenido confirmado vía curl en producción).
+
+Nota de entorno (importante para próximas sesiones): en este Mac, `next build` y `eslint` se cuelgan indefinidamente al cargar el binario nativo de SWC (`node_modules/@next/swc-darwin-arm64/*.node`) — Gatekeeper lo rechaza (`spctl` devuelve `rejected`) y el intento de cargarlo nunca retorna. Es el mismo problema ya visto con el binario de `psycopg` en el backend. `tsc --noEmit` sí corre limpio (no depende de binarios nativos). La validación real de build/lint del frontend debe hacerse dejando que Vercel construya en su propio entorno (Linux), no localmente.
 
 ---
 
@@ -153,17 +165,17 @@ PostgreSQL (ya cubierta en la práctica: PostgreSQL 16 en Hetzner con 7 tablas m
 
 ✅ Infraestructura
 
-⬜ Backend
+✅ Backend (catálogo completo; `playback` pendiente para la fase de reproductor)
 
-⬜ PostgreSQL
+✅ PostgreSQL
 
-⬜ Storage
+✅ Storage
 
-⬜ Autenticación
+✅ Autenticación
 
-⬜ API REST
+✅ API REST
 
-⬜ Frontend
+🟡 Frontend (landing pública lista; falta la app privada/dashboard)
 
 ⬜ Dashboard
 
@@ -334,3 +346,9 @@ v0.3.0
 - Segunda migración Alembic (8 tablas en total) aplicada en producción.
 - CRUD y relaciones verificadas end-to-end en producción, incluyendo borrado en cascada.
 - `playback` queda deliberadamente sin modelo — se diseñará junto al reproductor (Fase 9-10).
+
+v0.4.0
+
+- Landing page pública con hero 3D (React Three Fiber + drei), scroll reveal (Framer Motion) y SEO completo.
+- Desplegada y verificada en `https://studiodesk.riava.cl`.
+- Documentado el problema de Gatekeeper con binarios nativos (SWC) que impide correr `next build`/`eslint` localmente en este Mac.
