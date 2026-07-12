@@ -1,0 +1,53 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import WaveSurfer from "wavesurfer.js";
+
+interface ITrackWaveformProps {
+  url: string;
+  currentTime: number;
+  duration: number;
+  isMuted: boolean;
+  onSeek: (seconds: number) => void;
+}
+
+export function TrackWaveform({ url, currentTime, duration, isMuted, onSeek }: ITrackWaveformProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wavesurferRef = useRef<WaveSurfer | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const wavesurfer = WaveSurfer.create({
+      container: containerRef.current,
+      url,
+      height: 48,
+      waveColor: "rgba(255,255,255,0.25)",
+      progressColor: "#ff8a1f",
+      cursorColor: "transparent",
+      interact: true,
+      normalize: true,
+    });
+    wavesurfer.setMuted(true);
+    wavesurfer.on("interaction", (time) => onSeek(time));
+    wavesurferRef.current = wavesurfer;
+
+    return () => {
+      wavesurfer.destroy();
+      wavesurferRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
+  useEffect(() => {
+    const wavesurfer = wavesurferRef.current;
+    if (!wavesurfer || !duration) return;
+    wavesurfer.seekTo(Math.min(currentTime / duration, 1));
+  }, [currentTime, duration]);
+
+  return (
+    <div className={isMuted ? "opacity-40 transition-opacity" : "transition-opacity"}>
+      <div ref={containerRef} />
+    </div>
+  );
+}

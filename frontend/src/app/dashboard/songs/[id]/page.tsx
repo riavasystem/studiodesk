@@ -6,9 +6,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { MultitrackPlayerLoader } from "@/components/player/multitrack-player-loader";
 import { useSong } from "@/hooks/use-songs";
 import {
   useCreateTrack,
@@ -43,7 +41,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
       const name = file.name.replace(/\.[^/.]+$/, "");
       await createTrack.mutateAsync({
         name,
-        file_path: audioFile.storage_path,
+        file_path: String(audioFile.id),
         order_index: tracks?.length ?? 0,
       });
       toast.success("Pista agregada");
@@ -73,6 +71,10 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
         </p>
       </div>
 
+      {tracks && tracks.length > 0 && (
+        <MultitrackPlayerLoader tracks={tracks} onUpdateTrack={(input) => updateTrack.mutate(input)} />
+      )}
+
       <Card className="border-white/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Pistas</CardTitle>
@@ -90,17 +92,17 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6">
+        <CardContent className="flex flex-col gap-2">
           {isLoading && <p className="text-sm text-white/50">Cargando...</p>}
           {tracks?.length === 0 && (
             <p className="text-sm text-white/50">
               Todavía no tienes pistas. Sube el primer archivo de audio (voz, click, guitarra...).
             </p>
           )}
-          {tracks?.map((track) => (
-            <div key={track.id} className="rounded-lg border border-white/10 p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-white">{track.name}</span>
+          <ul className="divide-y divide-white/10">
+            {tracks?.map((track) => (
+              <li key={track.id} className="flex items-center justify-between py-2">
+                <span className="text-sm text-white">{track.name}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -112,69 +114,9 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                 >
                   <Trash2 className="size-4 text-white/40" />
                 </Button>
-              </div>
-
-              <div className="mt-4 flex items-center gap-4">
-                <Label className="w-16 text-xs text-white/50">Volumen</Label>
-                <Slider
-                  className="flex-1"
-                  min={0}
-                  max={2}
-                  step={0.01}
-                  value={[track.volume]}
-                  onValueChange={(value) => {
-                    const volume = Array.isArray(value) ? value[0] : value;
-                    updateTrack.mutate({
-                      id: track.id,
-                      name: track.name,
-                      file_path: track.file_path,
-                      order_index: track.order_index,
-                      volume,
-                      is_muted: track.is_muted,
-                      is_solo: track.is_solo,
-                    });
-                  }}
-                />
-              </div>
-
-              <div className="mt-4 flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={track.is_muted}
-                    onCheckedChange={(checked) =>
-                      updateTrack.mutate({
-                        id: track.id,
-                        name: track.name,
-                        file_path: track.file_path,
-                        order_index: track.order_index,
-                        volume: track.volume,
-                        is_muted: checked,
-                        is_solo: track.is_solo,
-                      })
-                    }
-                  />
-                  <Label className="text-xs text-white/50">Mute</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={track.is_solo}
-                    onCheckedChange={(checked) =>
-                      updateTrack.mutate({
-                        id: track.id,
-                        name: track.name,
-                        file_path: track.file_path,
-                        order_index: track.order_index,
-                        volume: track.volume,
-                        is_muted: track.is_muted,
-                        is_solo: checked,
-                      })
-                    }
-                  />
-                  <Label className="text-xs text-white/50">Solo</Label>
-                </div>
-              </div>
-            </div>
-          ))}
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
     </div>

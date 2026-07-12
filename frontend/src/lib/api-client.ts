@@ -94,6 +94,28 @@ export async function apiFetchForm<T>(path: string, form: URLSearchParams): Prom
   return response.json() as Promise<T>;
 }
 
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const accessToken = useAuthStore.getState().accessToken;
+
+  const doFetch = async (token: string | null) =>
+    fetch(`${API_URL}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+  let response = await doFetch(accessToken);
+
+  if (response.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (newToken) response = await doFetch(newToken);
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseErrorMessage(response));
+  }
+
+  return response.blob();
+}
+
 export async function apiFetchUpload<T>(path: string, file: File): Promise<T> {
   const accessToken = useAuthStore.getState().accessToken;
   const formData = new FormData();
