@@ -9,8 +9,11 @@ class TrackCreate(BaseModel):
     file_path: str = Field(min_length=1, max_length=500)
     order_index: int = 0
     volume: float = Field(default=1.0, ge=0.0, le=2.0)
+    pan: float = Field(default=0.0, ge=-1.0, le=1.0)
     is_muted: bool = False
     is_solo: bool = False
+    is_phase_inverted: bool = False
+    color: str = Field(default="#ff8a1f", max_length=20)
 
 
 class TrackUpdate(TrackCreate):
@@ -26,7 +29,10 @@ class TrackRead(BaseModel):
     file_path: str
     order_index: int
     volume: float
+    pan: float
     is_muted: bool
     is_solo: bool
+    is_phase_inverted: bool
+    color: str
     created_at: datetime
     updated_at: datetime
