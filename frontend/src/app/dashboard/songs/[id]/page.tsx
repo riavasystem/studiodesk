@@ -7,7 +7,7 @@ import { ArrowLeft, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MultitrackPlayerLoader } from "@/components/player/multitrack-player-loader";
-import { useSong } from "@/hooks/use-songs";
+import { useSong, useSongs } from "@/hooks/use-songs";
 import {
   useCreateTrack,
   useDeleteTrack,
@@ -21,6 +21,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   const songId = Number(id);
 
   const { data: song } = useSong(songId);
+  const { data: songs } = useSongs();
   const { data: tracks, isLoading } = useTracks(songId);
   const uploadAudio = useUploadAudio();
   const createTrack = useCreateTrack(songId);
@@ -53,26 +54,30 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8">
-      <div>
-        <Link
-          href="/dashboard/songs"
-          className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white/80"
-        >
-          <ArrowLeft className="size-4" /> Canciones
-        </Link>
-        <p className="mt-4 font-mono text-xs tracking-[0.3em] text-orange-400 uppercase">Canción</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">
-          {song?.title ?? "..."}
-        </h1>
-        <p className="text-sm text-white/50">
-          {song?.artist}
-          {song?.bpm ? ` · ${song.bpm} BPM` : ""}
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <Link
+        href="/dashboard/songs"
+        className="inline-flex w-fit items-center gap-1 text-sm text-white/50 hover:text-white/80"
+      >
+        <ArrowLeft className="size-4" /> Canciones
+      </Link>
 
-      {tracks && tracks.length > 0 && (
-        <MultitrackPlayerLoader tracks={tracks} onUpdateTrack={(input) => updateTrack.mutate(input)} />
+      {song && tracks && tracks.length > 0 && (
+        <MultitrackPlayerLoader
+          song={song}
+          songs={songs ?? []}
+          tracks={tracks}
+          onUpdateTrack={(input) => updateTrack.mutate(input)}
+        />
+      )}
+
+      {tracks && tracks.length === 0 && (
+        <div className="rounded-2xl border border-white/8 bg-white/2 px-6 py-10 text-center">
+          <p className="text-sm text-white/50">
+            Sube la primera pista de <span className="text-white">{song?.title}</span> para activar el
+            reproductor.
+          </p>
+        </div>
       )}
 
       <Card className="border-white/10">
@@ -94,11 +99,6 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {isLoading && <p className="text-sm text-white/50">Cargando...</p>}
-          {tracks?.length === 0 && (
-            <p className="text-sm text-white/50">
-              Todavía no tienes pistas. Sube el primer archivo de audio (voz, click, guitarra...).
-            </p>
-          )}
           <ul className="divide-y divide-white/10">
             {tracks?.map((track) => (
               <li key={track.id} className="flex items-center justify-between py-2">

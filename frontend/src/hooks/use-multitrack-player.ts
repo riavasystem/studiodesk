@@ -24,6 +24,8 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   const [markers, setMarkers] = useState<IMarker[]>([]);
   const [trackUrls, setTrackUrls] = useState<Map<number, string>>(new Map());
   const [trackLevels, setTrackLevels] = useState<Map<number, number>>(new Map());
+  const [masterVolume, setMasterVolumeState] = useState(1);
+  const [masterLevel, setMasterLevel] = useState(0);
 
   if (!engineRef.current) engineRef.current = new MultitrackEngine();
 
@@ -92,6 +94,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
         setTrackLevels(
           new Map(trackIdListRef.current.map((id) => [id, engine.getTrackLevel(id)])),
         );
+        setMasterLevel(engine.getMasterLevel());
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -135,6 +138,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     engineRef.current?.setTrackMixState(mixTracks);
   }, []);
 
+  const setMasterVolume = useCallback((value: number) => {
+    setMasterVolumeState(value);
+    engineRef.current?.setMasterVolume(value);
+  }, []);
+
   const addMarker = useCallback((label: string, time: number) => {
     setMarkers((prev) => [...prev, { label, time }].sort((a, b) => a.time - b.time));
   }, []);
@@ -155,6 +163,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     markers,
     trackUrls,
     trackLevels,
+    masterVolume,
+    masterLevel,
+    setMasterVolume,
     play,
     pause,
     stop,

@@ -12,6 +12,12 @@ const FADE_SECONDS = 0.05;
 export class MultitrackEngine {
   private nodes = new Map<number, ITrackNode>();
   private loaded = false;
+  private masterGain = new Tone.Gain(1).toDestination();
+  private masterMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
+
+  constructor() {
+    this.masterGain.connect(this.masterMeter);
+  }
 
   get duration(): number {
     let max = 0;
@@ -30,7 +36,7 @@ export class MultitrackEngine {
         (track) =>
           new Promise<void>((resolve, reject) => {
             const meter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
-            const pitchShift = new Tone.PitchShift().connect(meter).toDestination();
+            const pitchShift = new Tone.PitchShift().connect(meter).connect(this.masterGain);
             const gain = new Tone.Gain(track.volume).connect(pitchShift);
             const player = new Tone.Player({
               url: track.url,
@@ -69,6 +75,15 @@ export class MultitrackEngine {
   setTrackVolume(id: number, volume: number) {
     const node = this.nodes.get(id);
     if (node) node.gain.gain.rampTo(volume, 0.05);
+  }
+
+  getMasterLevel(): number {
+    const value = this.masterMeter.getValue();
+    return typeof value === "number" ? value : 0;
+  }
+
+  setMasterVolume(volume: number) {
+    this.masterGain.gain.rampTo(volume, 0.05);
   }
 
   setTrackMixState(tracks: { id: number; isMuted: boolean; isSolo: boolean }[]) {

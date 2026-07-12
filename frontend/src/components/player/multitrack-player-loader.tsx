@@ -2,13 +2,14 @@
 
 import dynamic from "next/dynamic";
 import type { ITrack } from "@/hooks/use-tracks";
+import type { ISong } from "@/hooks/use-songs";
 
 const MultitrackPlayer = dynamic(
   () => import("./multitrack-player").then((mod) => mod.MultitrackPlayer),
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-40 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.02] text-xs text-white/40">
+      <div className="flex h-64 items-center justify-center rounded-2xl border border-white/8 bg-white/2 text-xs text-white/40">
         Cargando reproductor...
       </div>
     ),
@@ -16,6 +17,8 @@ const MultitrackPlayer = dynamic(
 );
 
 interface IMultitrackPlayerLoaderProps {
+  song: ISong;
+  songs: ISong[];
   tracks: ITrack[];
   onUpdateTrack: (input: {
     id: number;
