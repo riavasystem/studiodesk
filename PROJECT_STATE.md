@@ -8,7 +8,7 @@ Salem Studio
 
 Versión
 
-0.5.0
+0.6.0
 
 Estado
 
@@ -176,6 +176,22 @@ Entregado:
 
 Nota de entorno (importante para próximas sesiones): en este Mac, `next build` y `eslint` se cuelgan indefinidamente al cargar el binario nativo de SWC (`node_modules/@next/swc-darwin-arm64/*.node`) — Gatekeeper lo rechaza (`spctl` devuelve `rejected`) y el intento de cargarlo nunca retorna. Es el mismo problema ya visto con el binario de `psycopg` en el backend. `tsc --noEmit` sí corre limpio (no depende de binarios nativos). La validación real de build/lint del frontend debe hacerse dejando que Vercel construya en su propio entorno (Linux), no localmente.
 
+## CRUD completo del dashboard — completada (2026-07-12)
+
+Entregado:
+
+- Backend: endpoint faltante `GET /api/v1/playlists/{id}/songs` (listado ordenado por `order_index`).
+- Frontend, hooks CRUD completos por dominio (`use-categories.ts`, `use-albums.ts`, `use-songs.ts`, `use-tracks.ts`, `use-playlists.ts`) sobre TanStack Query.
+- Navegación con tabs (`dashboard-nav.tsx`) entre Canciones / Playlists / Álbumes / Categorías.
+- Páginas CRUD: `categories`, `albums`, `songs` (con selects de categoría/álbum opcionales), `songs/[id]` (detalle: subida de audio, alta de tracks, control de volumen/mute/solo por track, borrado), `playlists`, `playlists/[id]` (agregar/quitar canciones de la playlist).
+- Componentes shadcn nuevos: `dialog`, `select`, `tabs`, `badge`, `slider`, `switch`.
+- Verificado en producción: las 4 rutas (`/dashboard/songs`, `/dashboard/playlists`, `/dashboard/categories`, `/dashboard/albums`) responden HTTP 200 en `https://studiodesk.riava.cl`.
+
+Fixes de tipos por diferencias de API entre `base-ui` (preset shadcn "Nova") y Radix estándar (dejar registro para no repetirlos):
+
+1. `DialogTrigger` no tiene prop `asChild` — usar `render`: `<DialogTrigger render={<Button>X</Button>} />`.
+2. `Select`'s `onValueChange` tiene firma `(value: string | null, ...) => void` — los setters de `useState<string>` no aceptan `null`, hay que envolver: `onValueChange={(value) => setX(value ?? FALLBACK)}`.
+
 ---
 
 # Roadmap
@@ -192,9 +208,9 @@ Nota de entorno (importante para próximas sesiones): en este Mac, `next build` 
 
 ✅ API REST
 
-🟡 Frontend (landing pública + login/registro/dashboard base listos; falta CRUD completo y reproductor)
+🟢 Frontend (landing pública + login/registro/dashboard + CRUD completo)
 
-⬜ Dashboard
+✅ Dashboard
 
 ⬜ Reproductor
 
@@ -226,11 +242,11 @@ Completada: PostgreSQL 16 en Hetzner, DB `studiodesk_prod`, 8 tablas migradas (`
 
 Frontend
 
-- Landing page pública (en curso, ver Decisiones Técnicas)
+Completado: landing pública, autenticación y CRUD completo del dashboard.
 
 Reproductor
 
-Pendiente
+Pendiente — módulo actual
 
 Deploy
 
@@ -376,3 +392,11 @@ v0.5.0
 - Login end-to-end verificado en producción contra el backend real.
 - Fix: `export const dynamic` no funciona en archivos `"use client"` — layout de `/dashboard` separado en Server Component + client shell.
 - Fix: nunca tocar la API de Zustand `persist` durante el render (solo en `useEffect`) para evitar crashes de build/runtime con SSR.
+
+v0.6.0
+
+- CRUD completo del dashboard: categorías, álbumes, canciones (con tracks: subida de audio, volumen, mute, solo), playlists (alta/baja de canciones).
+- Endpoint backend faltante `GET /api/v1/playlists/{id}/songs`.
+- Verificado en producción: 4 rutas del dashboard responden HTTP 200.
+- Fixes de tipos por diferencias `base-ui` vs Radix (`DialogTrigger` sin `asChild`, `Select.onValueChange` nullable).
+- Próximo módulo: Reproductor (Tone.js + WaveSurfer.js).
