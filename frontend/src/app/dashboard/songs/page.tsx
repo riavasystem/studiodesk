@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Music2, Trash2 } from "lucide-react";
+import { FileArchive, Music2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCreateSong, useDeleteSong, useSongs } from "@/hooks/use-songs";
 import { useCategories } from "@/hooks/use-categories";
 import { useAlbums } from "@/hooks/use-albums";
+import { ImportZipDialog } from "@/components/songs/import-zip-dialog";
 
 const NONE_VALUE = "none";
 
@@ -42,6 +43,7 @@ export default function SongsPage() {
   const deleteSong = useDeleteSong();
 
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [bpm, setBpm] = useState("");
@@ -83,8 +85,14 @@ export default function SongsPage() {
           <p className="font-mono text-xs tracking-[0.3em] text-orange-400 uppercase">Canciones</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Canciones</h1>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button>Nueva canción</Button>} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileArchive className="size-4" />
+            Importar ZIP
+          </Button>
+          <ImportZipDialog open={importOpen} onOpenChange={setImportOpen} />
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger render={<Button>Nueva canción</Button>} />
           <DialogContent>
             <form onSubmit={handleCreate}>
               <DialogHeader>
@@ -143,7 +151,8 @@ export default function SongsPage() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {isLoading && <p className="text-sm text-white/50">Cargando...</p>}

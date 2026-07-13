@@ -3,10 +3,11 @@
 import { use, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MultitrackPlayerLoader } from "@/components/player/multitrack-player-loader";
+import { EditSongDialog } from "@/components/songs/edit-song-dialog";
 import { useSong, useSongs } from "@/hooks/use-songs";
 import {
   useCreateTrack,
@@ -30,6 +31,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,12 +57,22 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="flex flex-col gap-6">
-      <Link
-        href="/dashboard/songs"
-        className="inline-flex w-fit items-center gap-1 text-sm text-white/50 hover:text-white/80"
-      >
-        <ArrowLeft className="size-4" /> Canciones
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/dashboard/songs"
+          className="inline-flex w-fit items-center gap-1 text-sm text-white/50 hover:text-white/80"
+        >
+          <ArrowLeft className="size-4" /> Canciones
+        </Link>
+        {song && (
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="size-4" />
+            Editar
+          </Button>
+        )}
+      </div>
+
+      {song && <EditSongDialog song={song} open={editOpen} onOpenChange={setEditOpen} />}
 
       {song && tracks && tracks.length > 0 && (
         <MultitrackPlayerLoader

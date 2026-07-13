@@ -17,5 +17,8 @@ class Track(TimestampedBase):
     is_solo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_phase_inverted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     color: Mapped[str] = mapped_column(String(20), default="#ff8a1f", nullable=False)
+    track_type: Mapped[str] = mapped_column(String(30), default="other", nullable=False)
+    is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     song: Mapped["Song"] = relationship(back_populates="tracks")  # noqa: F821

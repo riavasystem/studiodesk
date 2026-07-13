@@ -2,6 +2,31 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+TRACK_TYPES = {
+    "drums",
+    "kick",
+    "snare",
+    "hihat",
+    "percussion",
+    "bass",
+    "guitar_electric",
+    "guitar_acoustic",
+    "piano",
+    "pad",
+    "strings",
+    "brass",
+    "fx",
+    "loops",
+    "click",
+    "guide",
+    "lead_vocal",
+    "backing_vocal",
+    "choir",
+    "narration",
+    "midi",
+    "other",
+}
+
 
 class TrackCreate(BaseModel):
     song_id: int
@@ -14,6 +39,9 @@ class TrackCreate(BaseModel):
     is_solo: bool = False
     is_phase_inverted: bool = False
     color: str = Field(default="#ff8a1f", max_length=20)
+    track_type: str = Field(default="other", pattern="^(" + "|".join(sorted(TRACK_TYPES)) + ")$")
+    is_hidden: bool = False
+    duration_seconds: float | None = None
 
 
 class TrackUpdate(TrackCreate):
@@ -34,5 +62,8 @@ class TrackRead(BaseModel):
     is_solo: bool
     is_phase_inverted: bool
     color: str
+    track_type: str
+    is_hidden: bool
+    duration_seconds: float | None
     created_at: datetime
     updated_at: datetime

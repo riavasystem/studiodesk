@@ -7,7 +7,15 @@ export interface ISong {
   artist: string;
   bpm: number | null;
   musical_key: string | null;
+  time_signature: string;
   duration_seconds: number | null;
+  language: string | null;
+  notes: string | null;
+  tags: string | null;
+  song_date: string | null;
+  cover_image_url: string | null;
+  color: string;
+  is_favorite: boolean;
   category_id: number | null;
   album_id: number | null;
   owner_id: number;
@@ -20,7 +28,15 @@ export interface ISongInput {
   artist: string;
   bpm?: number | null;
   musical_key?: string | null;
+  time_signature?: string;
   duration_seconds?: number | null;
+  language?: string | null;
+  notes?: string | null;
+  tags?: string | null;
+  song_date?: string | null;
+  cover_image_url?: string | null;
+  color?: string;
+  is_favorite?: boolean;
   category_id?: number | null;
   album_id?: number | null;
 }

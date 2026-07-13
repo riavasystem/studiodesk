@@ -116,6 +116,46 @@ export async function apiFetchBlob(path: string): Promise<Blob> {
   return response.blob();
 }
 
+export function apiFetchUploadWithProgress<T>(
+  path: string,
+  file: File,
+  onProgress: (loaded: number, total: number) => void,
+): { promise: Promise<T>; abort: () => void } {
+  const accessToken = useAuthStore.getState().accessToken;
+  const formData = new FormData();
+  formData.append("file", file);
+  const xhr = new XMLHttpRequest();
+
+  const promise = new Promise<T>((resolve, reject) => {
+    xhr.open("POST", `${API_URL}${path}`);
+    if (accessToken) xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded, event.total);
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.response ? JSON.parse(xhr.response) : (undefined as T));
+      } else {
+        let message = xhr.statusText;
+        try {
+          message = JSON.parse(xhr.response)?.detail ?? message;
+        } catch {
+          // response wasn't JSON, keep statusText
+        }
+        reject(new ApiError(xhr.status, message));
+      }
+    };
+    xhr.onerror = () => reject(new ApiError(0, "Error de red durante la subida"));
+    xhr.onabort = () => reject(new ApiError(0, "Subida cancelada"));
+
+    xhr.send(formData);
+  });
+
+  return { promise, abort: () => xhr.abort() };
+}
+
 export async function apiFetchUpload<T>(path: string, file: File): Promise<T> {
   const accessToken = useAuthStore.getState().accessToken;
   const formData = new FormData();

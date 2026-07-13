@@ -1,6 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiFetchUpload } from "@/lib/api-client";
 
+export type TrackType =
+  | "drums"
+  | "kick"
+  | "snare"
+  | "hihat"
+  | "percussion"
+  | "bass"
+  | "guitar_electric"
+  | "guitar_acoustic"
+  | "piano"
+  | "pad"
+  | "strings"
+  | "brass"
+  | "fx"
+  | "loops"
+  | "click"
+  | "guide"
+  | "lead_vocal"
+  | "backing_vocal"
+  | "choir"
+  | "narration"
+  | "midi"
+  | "other";
+
 export interface ITrack {
   id: number;
   song_id: number;
@@ -13,6 +37,9 @@ export interface ITrack {
   is_solo: boolean;
   is_phase_inverted: boolean;
   color: string;
+  track_type: TrackType;
+  is_hidden: boolean;
+  duration_seconds: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +66,9 @@ interface ITrackInput {
   is_solo?: boolean;
   is_phase_inverted?: boolean;
   color?: string;
+  track_type?: TrackType;
+  is_hidden?: boolean;
+  duration_seconds?: number | null;
 }
 
 export function useTracks(songId: number) {

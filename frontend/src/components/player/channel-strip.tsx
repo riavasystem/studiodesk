@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Circle } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { VerticalMeter } from "@/components/player/vertical-meter";
+import { TRACK_TYPE_ICONS, TRACK_TYPE_LABELS } from "@/lib/track-types";
 import type { ITrack } from "@/hooks/use-tracks";
 
 function dbLabel(db: number): string {
@@ -65,6 +66,9 @@ export function ChannelStrip({
     if (name && name !== track.name) onRename(name);
   };
 
+  const TypeIcon = TRACK_TYPE_ICONS[track.track_type] ?? TRACK_TYPE_ICONS.other;
+  const typeLabel = TRACK_TYPE_LABELS[track.track_type] ?? "Otro";
+
   if (collapsed) {
     return (
       <div
@@ -97,7 +101,7 @@ export function ChannelStrip({
       style={{ borderTopColor: color, borderTopWidth: 2 }}
     >
       <div className="flex w-full items-center justify-between">
-        <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <TypeIcon className="size-3.5 shrink-0" style={{ color }} title={typeLabel} />
         {editing ? (
           <input
             autoFocus
