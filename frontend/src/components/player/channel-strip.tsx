@@ -101,7 +101,9 @@ export function ChannelStrip({
       style={{ borderTopColor: color, borderTopWidth: 2 }}
     >
       <div className="flex w-full items-center justify-between">
-        <TypeIcon className="size-3.5 shrink-0" style={{ color }} title={typeLabel} />
+        <span title={typeLabel}>
+          <TypeIcon className="size-3.5 shrink-0" style={{ color }} />
+        </span>
         {editing ? (
           <input
             autoFocus
