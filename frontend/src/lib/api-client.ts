@@ -94,6 +94,12 @@ export async function apiFetchForm<T>(path: string, form: URLSearchParams): Prom
   return response.json() as Promise<T>;
 }
 
+export function buildAuthenticatedStorageUrl(fileId: string): string {
+  const accessToken = useAuthStore.getState().accessToken;
+  const params = accessToken ? `?access_token=${encodeURIComponent(accessToken)}` : "";
+  return `${API_URL}/storage/${fileId}${params}`;
+}
+
 export async function apiFetchBlob(path: string, signal?: AbortSignal): Promise<Blob> {
   const accessToken = useAuthStore.getState().accessToken;
 

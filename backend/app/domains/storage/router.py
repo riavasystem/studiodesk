@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_current_user_header_or_query
 from app.db.session import get_db
 from app.domains.storage.models import AudioFile
 from app.domains.storage.schemas import AudioFileRead
@@ -35,7 +35,7 @@ async def upload_audio_file(
 def download_audio_file(
     file_id: int,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user_header_or_query)],
 ):
     audio_file = get_audio_file(db, file_id)
     if audio_file is None:

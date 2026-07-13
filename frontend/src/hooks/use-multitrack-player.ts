@@ -1,48 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetchBlob } from "@/lib/api-client";
+import { buildAuthenticatedStorageUrl } from "@/lib/api-client";
 import { MultitrackEngine } from "@/lib/multitrack-engine";
 import type { ITrack } from "@/hooks/use-tracks";
 
-const MAX_CONCURRENT_DOWNLOADS = 4;
-const MAX_ATTEMPTS_PER_TRACK = 3;
-
-async function fetchBlobsWithLimit(
-  paths: string[],
-  signal: AbortSignal,
-  onEachDone: () => void,
-): Promise<Blob[]> {
-  const results: Blob[] = new Array(paths.length);
-  let nextIndex = 0;
-
-  async function worker() {
-    while (true) {
-      const i = nextIndex++;
-      if (i >= paths.length) return;
-
-      let lastError: unknown;
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_TRACK; attempt++) {
-        try {
-          results[i] = await apiFetchBlob(paths[i], signal);
-          lastError = null;
-          break;
-        } catch (err) {
-          if (err instanceof DOMException && err.name === "AbortError") throw err;
-          lastError = err;
-        }
-      }
-      if (lastError) throw lastError;
-      onEachDone();
-    }
-  }
-
-  const workerCount = Math.min(MAX_CONCURRENT_DOWNLOADS, paths.length);
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  return results;
-}
-
 export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   const engineRef = useRef<MultitrackEngine | null>(null);
-  const objectUrlsRef = useRef<string[]>([]);
   const rafRef = useRef<number | null>(null);
 
   const [isReady, setIsReady] = useState(false);
@@ -80,39 +42,30 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     }
 
     let cancelled = false;
-    const abortController = new AbortController();
     setIsLoading(true);
     setIsReady(false);
     setLoadError(null);
     setLoadedTracks(0);
     setTotalTracks(tracks.length);
 
+    const urls = new Map(tracks.map((t) => [t.id, buildAuthenticatedStorageUrl(t.file_path)]));
+    setTrackUrls(urls);
+
     (async () => {
       try {
-        const blobs = await fetchBlobsWithLimit(
-          tracks.map((t) => `/storage/${t.file_path}`),
-          abortController.signal,
-          () => {
-            if (!cancelled) setLoadedTracks((count) => count + 1);
-          },
-        );
-        if (cancelled) return;
-
-        objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-        const urls = blobs.map((blob) => URL.createObjectURL(blob));
-        objectUrlsRef.current = urls;
-        setTrackUrls(new Map(tracks.map((t, i) => [t.id, urls[i]])));
-
         await engine.loadTracks(
-          tracks.map((t, i) => ({
+          tracks.map((t) => ({
             id: t.id,
-            url: urls[i],
+            url: urls.get(t.id)!,
             volume: t.volume,
             pan: t.pan,
             isMuted: t.is_muted,
             isSolo: t.is_solo,
             isPhaseInverted: t.is_phase_inverted,
           })),
+          () => {
+            if (!cancelled) setLoadedTracks((count) => count + 1);
+          },
         );
         if (cancelled) return;
 
@@ -122,7 +75,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
         setIsReady(true);
         setIsLoading(false);
       } catch (err) {
-        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
+        if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las pistas");
         setIsLoading(false);
       }
@@ -130,7 +83,6 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
 
     return () => {
       cancelled = true;
-      abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackIds]);
@@ -139,7 +91,6 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     const engine = engineRef.current;
     return () => {
       engine?.dispose();
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 

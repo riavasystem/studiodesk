@@ -31,6 +31,7 @@ export interface ITrackMixState {
 
 const FADE_SECONDS = 0.05;
 const CLIP_THRESHOLD_DB = -0.5;
+const MAX_CONCURRENT_TRACK_LOADS = 4;
 
 export class MultitrackEngine {
   private nodes = new Map<number, ITrackNode>();
@@ -75,57 +76,70 @@ export class MultitrackEngine {
     return max;
   }
 
-  async loadTracks(tracks: ITrackLoadInput[]) {
+  async loadTracks(tracks: ITrackLoadInput[], onTrackLoaded?: () => void) {
     this.dispose();
     await Tone.start();
 
+    const loadOne = (track: ITrackLoadInput) =>
+      new Promise<void>((resolve, reject) => {
+        const meter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
+        const meterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
+        const sendGain = new Tone.Gain(0).connect(this.reverb);
+        const compressor = new Tone.Compressor({ threshold: 0, ratio: 1 });
+        const eq = new Tone.EQ3({ low: 0, mid: 0, high: 0 });
+        const panner = new Tone.Panner(track.pan);
+        const pitchShift = new Tone.PitchShift();
+        const phaseGain = new Tone.Gain(track.isPhaseInverted ? -1 : 1);
+        const gain = new Tone.Gain(track.volume);
+
+        compressor.connect(eq);
+        eq.connect(meter);
+        eq.connect(meterDb);
+        eq.connect(this.masterGain);
+        eq.connect(sendGain);
+        panner.connect(compressor);
+        pitchShift.connect(panner);
+        phaseGain.connect(pitchShift);
+        gain.connect(phaseGain);
+
+        const player = new Tone.Player({
+          url: track.url,
+          fadeIn: FADE_SECONDS,
+          fadeOut: FADE_SECONDS,
+          onload: () => {
+            onTrackLoaded?.();
+            resolve();
+          },
+          onerror: (err) => reject(err),
+        }).connect(gain);
+        player.sync().start(0);
+
+        this.nodes.set(track.id, {
+          player,
+          gain,
+          phaseGain,
+          pitchShift,
+          panner,
+          eq,
+          compressor,
+          sendGain,
+          meter,
+          meterDb,
+        });
+      });
+
+    // Load a limited number of tracks concurrently to avoid exhausting
+    // browser memory/network resources when a song has many large tracks.
+    const queue = [...tracks];
+    const workerCount = Math.min(MAX_CONCURRENT_TRACK_LOADS, queue.length);
     await Promise.all(
-      tracks.map(
-        (track) =>
-          new Promise<void>((resolve, reject) => {
-            const meter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
-            const meterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
-            const sendGain = new Tone.Gain(0).connect(this.reverb);
-            const compressor = new Tone.Compressor({ threshold: 0, ratio: 1 });
-            const eq = new Tone.EQ3({ low: 0, mid: 0, high: 0 });
-            const panner = new Tone.Panner(track.pan);
-            const pitchShift = new Tone.PitchShift();
-            const phaseGain = new Tone.Gain(track.isPhaseInverted ? -1 : 1);
-            const gain = new Tone.Gain(track.volume);
-
-            compressor.connect(eq);
-            eq.connect(meter);
-            eq.connect(meterDb);
-            eq.connect(this.masterGain);
-            eq.connect(sendGain);
-            panner.connect(compressor);
-            pitchShift.connect(panner);
-            phaseGain.connect(pitchShift);
-            gain.connect(phaseGain);
-
-            const player = new Tone.Player({
-              url: track.url,
-              fadeIn: FADE_SECONDS,
-              fadeOut: FADE_SECONDS,
-              onload: () => resolve(),
-              onerror: (err) => reject(err),
-            }).connect(gain);
-            player.sync().start(0);
-
-            this.nodes.set(track.id, {
-              player,
-              gain,
-              phaseGain,
-              pitchShift,
-              panner,
-              eq,
-              compressor,
-              sendGain,
-              meter,
-              meterDb,
-            });
-          }),
-      ),
+      Array.from({ length: workerCount }, async () => {
+        while (queue.length > 0) {
+          const track = queue.shift();
+          if (!track) return;
+          await loadOne(track);
+        }
+      }),
     );
 
     this.applySoloState(tracks);

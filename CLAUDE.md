@@ -5,11 +5,11 @@
 ## Proyecto
 
 Nombre temporal del proyecto:
-Salem Studio
+Studiodesk
 
 Descripción:
 
-Salem Studio es una plataforma SaaS profesional para reproducción y control de pistas multipista (Multitrack Playback), diseñada para músicos, iglesias, bandas, productores y eventos en vivo.
+StudioDesk es una plataforma SaaS profesional para reproducción y control de pistas multipista (Multitrack Playback), diseñada para músicos, iglesias, bandas, productores y eventos en vivo.
 
 La plataforma permitirá administrar canciones, controlar instrumentos individuales, realizar mezclas en tiempo real y ejecutar presentaciones con una interfaz moderna, rápida y profesional.
 
