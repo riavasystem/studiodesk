@@ -14,7 +14,7 @@ import { LyricsPanel } from "@/components/player/lyrics-panel";
 import { useMultitrackPlayer } from "@/hooks/use-multitrack-player";
 import { useCreateMarker, useDeleteMarker, useMarkers, MARKER_TYPE_COLORS, type MarkerType } from "@/hooks/use-markers";
 import { useLyrics } from "@/hooks/use-lyrics";
-import type { ITrack } from "@/hooks/use-tracks";
+import type { ITrack, TrackType } from "@/hooks/use-tracks";
 import type { ISong } from "@/hooks/use-songs";
 
 function formatTime(seconds: number): string {
@@ -54,6 +54,9 @@ interface IMultitrackPlayerProps {
     is_solo: boolean;
     is_phase_inverted: boolean;
     color: string;
+    track_type: TrackType;
+    is_hidden: boolean;
+    duration_seconds: number | null;
   }) => void;
 }
 
@@ -85,6 +88,9 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
       is_solo: updated.is_solo,
       is_phase_inverted: updated.is_phase_inverted,
       color: updated.color,
+      track_type: updated.track_type,
+      is_hidden: updated.is_hidden,
+      duration_seconds: updated.duration_seconds,
     });
   };
 

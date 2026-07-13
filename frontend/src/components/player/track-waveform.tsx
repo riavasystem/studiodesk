@@ -31,6 +31,7 @@ export function TrackWaveform({
     const wavesurfer = WaveSurfer.create({
       container: containerRef.current,
       url,
+      fetchParams: { cache: "no-store" },
       height,
       waveColor: "rgba(255,255,255,0.45)",
       progressColor: "#ff8a1f",
@@ -45,6 +46,7 @@ export function TrackWaveform({
     });
     wavesurfer.setMuted(true);
     wavesurfer.on("interaction", (time) => onSeek(time));
+    wavesurfer.on("error", (err) => console.error("Waveform load error:", err));
     wavesurferRef.current = wavesurfer;
 
     return () => {

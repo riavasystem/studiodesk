@@ -95,17 +95,26 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   }, []);
 
   useEffect(() => {
+    let frameCount = 0;
     const tick = () => {
       const engine = engineRef.current;
       if (engine) {
+        // currentTime drives the playhead/waveform sync, so it updates every frame.
         setCurrentTime(engine.currentTime);
         setIsPlaying(engine.isPlaying);
-        setTrackLevels(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackLevel(id)])));
-        setTrackDb(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackDb(id)])));
-        setTrackClipping(new Map(trackIdListRef.current.map((id) => [id, engine.isTrackClipping(id)])));
-        setMasterLevel(engine.getMasterLevel());
-        setMasterDb(engine.getMasterDb());
-        setMasterClipping(engine.isMasterClipping());
+
+        // Meters are throttled: re-rendering every mixer channel at 60fps makes
+        // the whole console feel unresponsive to clicks/drags/typing once a song
+        // has many tracks. ~15fps is still visually smooth for VU meters.
+        frameCount++;
+        if (frameCount % 4 === 0) {
+          setTrackLevels(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackLevel(id)])));
+          setTrackDb(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackDb(id)])));
+          setTrackClipping(new Map(trackIdListRef.current.map((id) => [id, engine.isTrackClipping(id)])));
+          setMasterLevel(engine.getMasterLevel());
+          setMasterDb(engine.getMasterDb());
+          setMasterClipping(engine.isMasterClipping());
+        }
       }
       rafRef.current = requestAnimationFrame(tick);
     };

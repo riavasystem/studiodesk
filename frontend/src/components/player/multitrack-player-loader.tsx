@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ITrack } from "@/hooks/use-tracks";
+import type { ITrack, TrackType } from "@/hooks/use-tracks";
 import type { ISong } from "@/hooks/use-songs";
 
 const MultitrackPlayer = dynamic(
@@ -31,6 +31,9 @@ interface IMultitrackPlayerLoaderProps {
     is_solo: boolean;
     is_phase_inverted: boolean;
     color: string;
+    track_type: TrackType;
+    is_hidden: boolean;
+    duration_seconds: number | null;
   }) => void;
 }
 
