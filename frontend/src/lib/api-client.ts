@@ -101,6 +101,7 @@ export async function apiFetchBlob(path: string, signal?: AbortSignal): Promise<
     fetch(`${API_URL}${path}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       signal,
+      cache: "no-store",
     });
 
   let response = await doFetch(accessToken);
