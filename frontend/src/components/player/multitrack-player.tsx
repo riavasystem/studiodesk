@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronRight, Music2, Pause, Play, Plus, Repeat, Square, X, ZoomIn } from "lucide-react";
+import { AlertTriangle, ChevronRight, Loader2, Music2, Pause, Play, Plus, Repeat, Square, X, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { TrackWaveform } from "@/components/player/track-waveform";
@@ -176,6 +176,21 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
             <Repeat className="size-4" />
           </Button>
         </div>
+
+        {player.isLoading && (
+          <div className="flex items-center gap-2 rounded-lg border border-white/6 bg-black/30 px-3 py-1.5">
+            <Loader2 className="size-3.5 animate-spin text-orange-400" />
+            <span className="font-mono text-[11px] text-white/50 tabular-nums">
+              Cargando pistas {player.loadedTracks}/{player.totalTracks}
+            </span>
+          </div>
+        )}
+        {player.loadError && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5">
+            <AlertTriangle className="size-3.5 text-red-400" />
+            <span className="text-[11px] text-red-300">{player.loadError}</span>
+          </div>
+        )}
 
         <div className="flex min-w-40 flex-1 items-center gap-2">
           <span className="font-mono text-[10px] tracking-widest text-white/40 uppercase">Tempo</span>

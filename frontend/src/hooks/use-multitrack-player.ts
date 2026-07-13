@@ -10,6 +10,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
 
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadedTracks, setLoadedTracks] = useState(0);
+  const [totalTracks, setTotalTracks] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -40,40 +43,58 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     }
 
     let cancelled = false;
+    const abortController = new AbortController();
     setIsLoading(true);
     setIsReady(false);
+    setLoadError(null);
+    setLoadedTracks(0);
+    setTotalTracks(tracks.length);
 
     (async () => {
-      const blobs = await Promise.all(tracks.map((t) => apiFetchBlob(`/storage/${t.file_path}`)));
-      if (cancelled) return;
+      try {
+        const blobs = await Promise.all(
+          tracks.map((t) =>
+            apiFetchBlob(`/storage/${t.file_path}`, abortController.signal).then((blob) => {
+              if (!cancelled) setLoadedTracks((count) => count + 1);
+              return blob;
+            }),
+          ),
+        );
+        if (cancelled) return;
 
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      const urls = blobs.map((blob) => URL.createObjectURL(blob));
-      objectUrlsRef.current = urls;
-      setTrackUrls(new Map(tracks.map((t, i) => [t.id, urls[i]])));
+        objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+        const urls = blobs.map((blob) => URL.createObjectURL(blob));
+        objectUrlsRef.current = urls;
+        setTrackUrls(new Map(tracks.map((t, i) => [t.id, urls[i]])));
 
-      await engine.loadTracks(
-        tracks.map((t, i) => ({
-          id: t.id,
-          url: urls[i],
-          volume: t.volume,
-          pan: t.pan,
-          isMuted: t.is_muted,
-          isSolo: t.is_solo,
-          isPhaseInverted: t.is_phase_inverted,
-        })),
-      );
-      if (cancelled) return;
+        await engine.loadTracks(
+          tracks.map((t, i) => ({
+            id: t.id,
+            url: urls[i],
+            volume: t.volume,
+            pan: t.pan,
+            isMuted: t.is_muted,
+            isSolo: t.is_solo,
+            isPhaseInverted: t.is_phase_inverted,
+          })),
+        );
+        if (cancelled) return;
 
-      engine.setTempo(tempo);
-      engine.setPitch(pitch);
-      setDuration(engine.duration);
-      setIsReady(true);
-      setIsLoading(false);
+        engine.setTempo(tempo);
+        engine.setPitch(pitch);
+        setDuration(engine.duration);
+        setIsReady(true);
+        setIsLoading(false);
+      } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
+        setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las pistas");
+        setIsLoading(false);
+      }
     })();
 
     return () => {
       cancelled = true;
+      abortController.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackIds]);
@@ -174,6 +195,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   return {
     isReady,
     isLoading,
+    loadError,
+    loadedTracks,
+    totalTracks,
     isPlaying,
     currentTime,
     duration,

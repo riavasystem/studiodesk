@@ -94,12 +94,13 @@ export async function apiFetchForm<T>(path: string, form: URLSearchParams): Prom
   return response.json() as Promise<T>;
 }
 
-export async function apiFetchBlob(path: string): Promise<Blob> {
+export async function apiFetchBlob(path: string, signal?: AbortSignal): Promise<Blob> {
   const accessToken = useAuthStore.getState().accessToken;
 
   const doFetch = async (token: string | null) =>
     fetch(`${API_URL}${path}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      signal,
     });
 
   let response = await doFetch(accessToken);
