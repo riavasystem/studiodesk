@@ -3,6 +3,43 @@ import { apiFetchBlob } from "@/lib/api-client";
 import { MultitrackEngine } from "@/lib/multitrack-engine";
 import type { ITrack } from "@/hooks/use-tracks";
 
+const MAX_CONCURRENT_DOWNLOADS = 4;
+const MAX_ATTEMPTS_PER_TRACK = 3;
+
+async function fetchBlobsWithLimit(
+  paths: string[],
+  signal: AbortSignal,
+  onEachDone: () => void,
+): Promise<Blob[]> {
+  const results: Blob[] = new Array(paths.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (true) {
+      const i = nextIndex++;
+      if (i >= paths.length) return;
+
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_TRACK; attempt++) {
+        try {
+          results[i] = await apiFetchBlob(paths[i], signal);
+          lastError = null;
+          break;
+        } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") throw err;
+          lastError = err;
+        }
+      }
+      if (lastError) throw lastError;
+      onEachDone();
+    }
+  }
+
+  const workerCount = Math.min(MAX_CONCURRENT_DOWNLOADS, paths.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
 export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   const engineRef = useRef<MultitrackEngine | null>(null);
   const objectUrlsRef = useRef<string[]>([]);
@@ -52,13 +89,12 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
 
     (async () => {
       try {
-        const blobs = await Promise.all(
-          tracks.map((t) =>
-            apiFetchBlob(`/storage/${t.file_path}`, abortController.signal).then((blob) => {
-              if (!cancelled) setLoadedTracks((count) => count + 1);
-              return blob;
-            }),
-          ),
+        const blobs = await fetchBlobsWithLimit(
+          tracks.map((t) => `/storage/${t.file_path}`),
+          abortController.signal,
+          () => {
+            if (!cancelled) setLoadedTracks((count) => count + 1);
+          },
         );
         if (cancelled) return;
 
