@@ -1,5 +1,7 @@
+import os
 import uuid
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -14,6 +16,7 @@ from app.domains.tracks.models import Track
 
 AUDIO_EXTENSIONS = {".wav", ".mp3"}
 MIME_TYPES = {".wav": "audio/wav", ".mp3": "audio/mpeg"}
+MAX_EXTRACT_WORKERS = max(1, min(4, os.cpu_count() or 1))
 
 ORDER_PRIORITY = [
     "click",
@@ -162,6 +165,21 @@ def get_import_job(db: Session, job_id: int) -> ImportJob | None:
     return db.get(ImportJob, job_id)
 
 
+def _extract_track_file(zip_path: str, audio_dir: Path, archive_name: str, filename: str) -> tuple[Path, int, float | None]:
+    """Runs in a worker thread: each call opens its own ZipFile handle since
+    zipfile.ZipFile is not safe to share across threads."""
+    extension = Path(filename).suffix.lower()
+    stored_filename = f"{uuid.uuid4().hex}{extension}"
+    destination = audio_dir / stored_filename
+
+    with zipfile.ZipFile(zip_path) as zf, zf.open(archive_name) as src, destination.open("wb") as out:
+        while chunk := src.read(1024 * 1024):
+            out.write(chunk)
+
+    duration = extract_duration_seconds(destination)
+    return destination, destination.stat().st_size, duration
+
+
 def process_zip_import(job_id: int) -> None:
     db = SessionLocal()
     job: ImportJob | None = None
@@ -177,64 +195,73 @@ def process_zip_import(job_id: int) -> None:
 
         with zipfile.ZipFile(job.zip_storage_path) as zf:
             entries = [info for info in zf.infolist() if is_audio_entry(info)]
-            if not entries:
-                raise ValueError("El ZIP no contiene archivos de audio válidos (.wav o .mp3)")
+        if not entries:
+            raise ValueError("El ZIP no contiene archivos de audio válidos (.wav o .mp3)")
 
-            job.total_files = len(entries)
-            db.commit()
+        job.total_files = len(entries)
+        db.commit()
 
-            planned = [(info, Path(info.filename).name, classify_track_type(info.filename)) for info in entries]
-            planned.sort(
-                key=lambda item: (
-                    ORDER_PRIORITY.index(item[2]) if item[2] in ORDER_PRIORITY else len(ORDER_PRIORITY),
-                    item[1].lower(),
-                )
+        planned = [(info.filename, Path(info.filename).name, classify_track_type(info.filename)) for info in entries]
+        planned.sort(
+            key=lambda item: (
+                ORDER_PRIORITY.index(item[2]) if item[2] in ORDER_PRIORITY else len(ORDER_PRIORITY),
+                item[1].lower(),
             )
+        )
 
-            for order_index, (info, filename, track_type) in enumerate(planned):
-                extension = Path(filename).suffix.lower()
-                stored_filename = f"{uuid.uuid4().hex}{extension}"
-                destination = audio_dir / stored_filename
-
-                with zf.open(info) as src, destination.open("wb") as out:
-                    while chunk := src.read(1024 * 1024):
-                        out.write(chunk)
-
-                audio_file = AudioFile(
-                    original_filename=filename,
-                    storage_path=str(destination),
-                    mime_type=MIME_TYPES.get(extension, "application/octet-stream"),
-                    size_bytes=destination.stat().st_size,
-                    uploaded_by_id=job.owner_id,
-                )
-                db.add(audio_file)
-                db.flush()
-
-                duration = extract_duration_seconds(destination)
-                track = Track(
-                    song_id=job.song_id,
-                    name=Path(filename).stem,
-                    file_path=str(audio_file.id),
-                    order_index=order_index,
-                    track_type=track_type,
-                    color=TRACK_TYPE_COLORS.get(track_type, "#ff8a1f"),
-                    duration_seconds=duration,
-                )
-                db.add(track)
-
-                job.processed_files = order_index + 1
+        # Decompression + disk writes + duration probing run in parallel across
+        # up to MAX_EXTRACT_WORKERS threads (each with its own ZipFile handle),
+        # since that's the CPU/IO-heavy part. DB writes stay single-threaded.
+        extracted: list[tuple[Path, int, float | None] | None] = [None] * len(planned)
+        with ThreadPoolExecutor(max_workers=MAX_EXTRACT_WORKERS) as executor:
+            future_to_index = {
+                executor.submit(_extract_track_file, job.zip_storage_path, audio_dir, archive_name, filename): i
+                for i, (archive_name, filename, _track_type) in enumerate(planned)
+            }
+            completed = 0
+            for future in as_completed(future_to_index):
+                index = future_to_index[future]
+                extracted[index] = future.result()
+                completed += 1
+                job.processed_files = completed
                 db.commit()
 
-            max_duration = db.scalar(
-                select(func.max(Track.duration_seconds)).where(Track.song_id == job.song_id)
-            )
-            if max_duration:
-                song = db.get(Song, job.song_id)
-                if song is not None:
-                    song.duration_seconds = max_duration
+        for order_index, (_archive_name, filename, track_type) in enumerate(planned):
+            result = extracted[order_index]
+            assert result is not None
+            destination, size_bytes, duration = result
+            extension = Path(filename).suffix.lower()
 
-            job.status = "completed"
-            db.commit()
+            audio_file = AudioFile(
+                original_filename=filename,
+                storage_path=str(destination),
+                mime_type=MIME_TYPES.get(extension, "application/octet-stream"),
+                size_bytes=size_bytes,
+                uploaded_by_id=job.owner_id,
+            )
+            db.add(audio_file)
+            db.flush()
+
+            track = Track(
+                song_id=job.song_id,
+                name=Path(filename).stem,
+                file_path=str(audio_file.id),
+                order_index=order_index,
+                track_type=track_type,
+                color=TRACK_TYPE_COLORS.get(track_type, "#ff8a1f"),
+                duration_seconds=duration,
+            )
+            db.add(track)
+        db.commit()
+
+        max_duration = db.scalar(select(func.max(Track.duration_seconds)).where(Track.song_id == job.song_id))
+        if max_duration:
+            song = db.get(Song, job.song_id)
+            if song is not None:
+                song.duration_seconds = max_duration
+
+        job.status = "completed"
+        db.commit()
     except Exception as exc:
         db.rollback()
         if job is not None:
