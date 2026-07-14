@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Circle, Pencil, Settings } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Fader } from "@/components/player/fader";
 import { VerticalMeter } from "@/components/player/vertical-meter";
 import { TRACK_TYPE_ICONS, TRACK_TYPE_LABELS } from "@/lib/track-types";
 import type { ITrack } from "@/hooks/use-tracks";
@@ -75,14 +76,18 @@ export function ChannelStrip({
         audible && isPlaying ? "border-white/15 bg-linear-to-b from-white/6 to-white/2" : "border-white/6 bg-white/2"
       }`}
     >
-      {/* Header: icon + S + M + advanced toggle */}
+      {/* Large instrument icon, above the track */}
       <div
-        className="flex w-full items-center gap-1 rounded-t-[7px] px-1.5 py-1.5"
+        className="flex w-full items-center justify-center rounded-t-[7px] py-2.5"
         style={{ backgroundColor: `${color}1a`, borderBottom: `1px solid ${color}55` }}
       >
-        <span title={typeLabel} className="shrink-0">
-          <TypeIcon className="size-3.5" style={{ color }} />
+        <span title={typeLabel} className="flex size-9 items-center justify-center rounded-full" style={{ backgroundColor: `${color}22` }}>
+          <TypeIcon className="size-5" style={{ color }} />
         </span>
+      </div>
+
+      {/* S + M + advanced toggle */}
+      <div className="flex w-full items-center gap-1 px-2">
         <button
           onClick={onToggleSolo}
           title="Solo"
@@ -118,15 +123,7 @@ export function ChannelStrip({
 
       <div className="flex h-36 w-full items-stretch justify-center gap-1.5 px-2">
         <VerticalMeter level={level} active={audible} clipping={clipping} />
-        <Slider
-          orientation="vertical"
-          className="h-full"
-          min={0}
-          max={2}
-          step={0.01}
-          value={[track.volume]}
-          onValueChange={(value) => onVolumeChange(Array.isArray(value) ? value[0] : value)}
-        />
+        <Fader value={track.volume} min={0} max={2} accent={color} onChange={onVolumeChange} />
       </div>
 
       <span

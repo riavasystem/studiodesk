@@ -1,6 +1,6 @@
 "use client";
 
-import { Slider } from "@/components/ui/slider";
+import { Fader } from "@/components/player/fader";
 import { VerticalMeter } from "@/components/player/vertical-meter";
 
 function dbLabel(db: number): string {
@@ -26,15 +26,7 @@ export function MasterStrip({ volume, level, db, clipping, isPlaying, onVolumeCh
 
       <div className="flex h-36 w-full items-stretch justify-center gap-1.5 px-2">
         <VerticalMeter level={level} active={isPlaying} clipping={clipping} />
-        <Slider
-          orientation="vertical"
-          className="h-full"
-          min={0}
-          max={1.5}
-          step={0.01}
-          value={[volume]}
-          onValueChange={(value) => onVolumeChange(Array.isArray(value) ? value[0] : value)}
-        />
+        <Fader value={volume} min={0} max={1.5} accent="#ff8a1f" onChange={onVolumeChange} />
       </div>
 
       <span
