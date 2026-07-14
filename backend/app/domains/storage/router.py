@@ -45,6 +45,9 @@ def download_audio_file(
         audio_file.storage_path,
         media_type=audio_file.mime_type,
         filename=audio_file.original_filename,
+        # Content at a given file_id never changes once created, so the browser
+        # can safely cache it across page loads/sessions without revalidating.
+        headers={"Cache-Control": "private, max-age=604800, immutable"},
     )
 
 
