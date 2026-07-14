@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Loader2, LogOut, Upload, Youtube } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, LogOut, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -112,7 +112,7 @@ function YouTubeImportContent() {
 
       {!statusLoading && !status?.connected && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/8 bg-white/2 px-6 py-14 text-center">
-          <Youtube className="size-10 text-red-500" />
+          <Video className="size-10 text-red-500" />
           <div>
             <p className="text-base font-medium text-white">Conectá tu cuenta de YouTube</p>
             <p className="mt-1 text-sm text-white/45">
@@ -120,7 +120,7 @@ function YouTubeImportContent() {
             </p>
           </div>
           <Button onClick={handleConnect} disabled={authUrl.isPending}>
-            {authUrl.isPending ? <Loader2 className="size-4 animate-spin" /> : <Youtube className="size-4" />}
+            {authUrl.isPending ? <Loader2 className="size-4 animate-spin" /> : <Video className="size-4" />}
             Conectar cuenta de YouTube
           </Button>
         </div>

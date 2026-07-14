@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { FileArchive, Music2, Trash2, Youtube } from "lucide-react";
+import { FileArchive, Music2, Trash2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,7 +89,7 @@ export default function SongsPage() {
         <div className="flex items-center gap-2">
           <Link href="/dashboard/youtube-import">
             <Button variant="outline">
-              <Youtube className="size-4" />
+              <Video className="size-4" />
               Importar de YouTube
             </Button>
           </Link>
