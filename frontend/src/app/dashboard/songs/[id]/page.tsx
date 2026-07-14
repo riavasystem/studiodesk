@@ -3,11 +3,12 @@
 import { use, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Music2, Pencil, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MultitrackPlayerLoader } from "@/components/player/multitrack-player-loader";
 import { EditSongDialog } from "@/components/songs/edit-song-dialog";
+import { resolveCoverImageUrl } from "@/lib/api-client";
 import { useSong, useSongs } from "@/hooks/use-songs";
 import {
   useCreateTrack,
@@ -137,6 +138,27 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
       {song && <EditSongDialog song={song} open={editOpen} onOpenChange={setEditOpen} />}
 
+      {song && (
+        <div className="flex items-center gap-4">
+          <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/8 bg-white/4">
+            {song.cover_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={resolveCoverImageUrl(song.cover_image_url) ?? undefined}
+                alt={song.title}
+                className="size-full object-cover"
+              />
+            ) : (
+              <Music2 className="size-6 text-white/25" strokeWidth={1.5} />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-semibold text-white">{song.title}</p>
+            <p className="truncate text-sm text-white/45">{song.artist}</p>
+          </div>
+        </div>
+      )}
+
       {song && tracks && tracks.length > 0 && (
         <MultitrackPlayerLoader
           song={song}
@@ -155,7 +177,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      <Card className="border-white/10">
+      <Card className="max-w-xl border-white/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Pistas</CardTitle>
           <div>

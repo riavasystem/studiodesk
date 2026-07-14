@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { resolveCoverImageUrl } from "@/lib/api-client";
 import { useUpdateSong, type ISong } from "@/hooks/use-songs";
 import { useCategories } from "@/hooks/use-categories";
 import { useAlbums } from "@/hooks/use-albums";
@@ -179,12 +180,27 @@ export function EditSongDialog({ song, open, onOpenChange }: IEditSongDialogProp
             </div>
             <div className="col-span-2 flex flex-col gap-2">
               <Label htmlFor="edit-cover">URL de portada</Label>
-              <Input
-                id="edit-cover"
-                value={form.cover_image_url ?? ""}
-                onChange={(e) => patch("cover_image_url", e.target.value || null)}
-                placeholder="https://..."
-              />
+              <div className="flex items-center gap-3">
+                <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/4">
+                  {form.cover_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={resolveCoverImageUrl(form.cover_image_url) ?? undefined}
+                      alt="Portada"
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[9px] text-white/25">Sin portada</span>
+                  )}
+                </div>
+                <Input
+                  id="edit-cover"
+                  className="flex-1"
+                  value={form.cover_image_url ?? ""}
+                  onChange={(e) => patch("cover_image_url", e.target.value || null)}
+                  placeholder="https://... (o se completa sola al importar un ZIP)"
+                />
+              </div>
             </div>
             <div className="col-span-2 flex flex-col gap-2">
               <Label htmlFor="edit-tags">Tags (separados por coma)</Label>
