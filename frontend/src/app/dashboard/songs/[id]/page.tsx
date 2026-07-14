@@ -146,7 +146,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
               <img
                 src={resolveCoverImageUrl(song.cover_image_url) ?? undefined}
                 alt={song.title}
-                className="size-full object-cover"
+                className="size-full object-contain"
               />
             ) : (
               <Music2 className="size-6 text-white/25" strokeWidth={1.5} />
@@ -177,7 +177,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      <Card className="max-w-xl border-white/10">
+      <Card className="mx-auto w-full max-w-xl border-white/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Pistas</CardTitle>
           <div>

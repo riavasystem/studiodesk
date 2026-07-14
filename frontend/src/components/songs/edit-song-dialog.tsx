@@ -187,7 +187,7 @@ export function EditSongDialog({ song, open, onOpenChange }: IEditSongDialogProp
                     <img
                       src={resolveCoverImageUrl(form.cover_image_url) ?? undefined}
                       alt="Portada"
-                      className="size-full object-cover"
+                      className="size-full object-contain"
                     />
                   ) : (
                     <span className="text-[9px] text-white/25">Sin portada</span>

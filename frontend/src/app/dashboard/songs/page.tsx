@@ -174,7 +174,7 @@ export default function SongsPage() {
                   <img
                     src={resolveCoverImageUrl(song.cover_image_url) ?? undefined}
                     alt={song.title}
-                    className="absolute inset-0 size-full object-cover"
+                    className="absolute inset-0 size-full object-contain"
                   />
                 ) : (
                   <Music2 className="size-8 text-white/30" strokeWidth={1.5} />

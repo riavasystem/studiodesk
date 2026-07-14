@@ -35,7 +35,7 @@ export function SongCarousel({ activeSongId, songs }: ISongCarouselProps) {
                 <img
                   src={resolveCoverImageUrl(s.cover_image_url) ?? undefined}
                   alt={s.title}
-                  className="absolute inset-0 size-full object-cover"
+                  className="absolute inset-0 size-full object-contain"
                 />
               ) : (
                 <Music2 className="size-6 text-white/20" strokeWidth={1.5} />
