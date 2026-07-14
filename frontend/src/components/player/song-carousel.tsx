@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Music2, Play, Plus } from "lucide-react";
+import { resolveCoverImageUrl } from "@/lib/api-client";
 import type { ISong } from "@/hooks/use-songs";
 
 interface ISongCarouselProps {
@@ -29,7 +30,16 @@ export function SongCarousel({ activeSongId, songs }: ISongCarouselProps) {
                   : "border-white/8 group-hover:border-white/20"
               }`}
             >
-              <Music2 className="size-6 text-white/20" strokeWidth={1.5} />
+              {s.cover_image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={resolveCoverImageUrl(s.cover_image_url) ?? undefined}
+                  alt={s.title}
+                  className="absolute inset-0 size-full object-cover"
+                />
+              ) : (
+                <Music2 className="size-6 text-white/20" strokeWidth={1.5} />
+              )}
               {active && (
                 <span className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-orange-400 px-1.5 py-0.5 text-[9px] font-bold text-black uppercase">
                   <Play className="size-2.5 fill-current" /> En reproducción

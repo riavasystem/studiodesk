@@ -20,6 +20,7 @@ import { useCreateSong, useDeleteSong, useSongs } from "@/hooks/use-songs";
 import { useCategories } from "@/hooks/use-categories";
 import { useAlbums } from "@/hooks/use-albums";
 import { ImportZipDialog } from "@/components/songs/import-zip-dialog";
+import { resolveCoverImageUrl } from "@/lib/api-client";
 
 const NONE_VALUE = "none";
 
@@ -166,9 +167,18 @@ export default function SongsPage() {
           >
             <Link href={`/dashboard/songs/${song.id}`} className="block">
               <div
-                className={`relative flex h-28 items-center justify-center bg-linear-to-br ${coverGradient(song.id)} border-b border-white/6`}
+                className={`relative flex h-28 items-center justify-center overflow-hidden bg-linear-to-br ${coverGradient(song.id)} border-b border-white/6`}
               >
-                <Music2 className="size-8 text-white/30" strokeWidth={1.5} />
+                {song.cover_image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={resolveCoverImageUrl(song.cover_image_url) ?? undefined}
+                    alt={song.title}
+                    className="absolute inset-0 size-full object-cover"
+                  />
+                ) : (
+                  <Music2 className="size-8 text-white/30" strokeWidth={1.5} />
+                )}
                 {song.musical_key && (
                   <span className="absolute top-2.5 right-2.5 rounded-full border border-white/15 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white/70 backdrop-blur">
                     {song.musical_key}

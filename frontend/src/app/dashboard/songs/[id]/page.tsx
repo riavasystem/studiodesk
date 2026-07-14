@@ -15,7 +15,58 @@ import {
   useTracks,
   useUpdateTrack,
   useUploadAudio,
+  type ITrack,
 } from "@/hooks/use-tracks";
+
+interface IEditableTrackNameProps {
+  track: ITrack;
+  onRename: (name: string) => void;
+}
+
+function EditableTrackName({ track, onRename }: IEditableTrackNameProps) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(track.name);
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = name.trim();
+    if (trimmed && trimmed !== track.name) onRename(trimmed);
+    else setName(track.name);
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setName(track.name);
+            setEditing(false);
+          }
+        }}
+        className="rounded border border-orange-400/40 bg-black/40 px-2 py-0.5 text-sm text-white outline-none"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setName(track.name);
+        setEditing(true);
+      }}
+      className="group flex items-center gap-1.5 text-sm text-white hover:text-orange-300"
+      title="Click para renombrar"
+    >
+      {track.name}
+      <Pencil className="size-3 shrink-0 opacity-0 group-hover:opacity-60" />
+    </button>
+  );
+}
 
 export default function SongDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -28,6 +79,27 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   const createTrack = useCreateTrack(songId);
   const updateTrack = useUpdateTrack(songId);
   const deleteTrack = useDeleteTrack(songId);
+
+  const renameTrack = (track: ITrack, name: string) => {
+    updateTrack.mutate(
+      {
+        id: track.id,
+        name,
+        file_path: track.file_path,
+        order_index: track.order_index,
+        volume: track.volume,
+        pan: track.pan,
+        is_muted: track.is_muted,
+        is_solo: track.is_solo,
+        is_phase_inverted: track.is_phase_inverted,
+        color: track.color,
+        track_type: track.track_type,
+        is_hidden: track.is_hidden,
+        duration_seconds: track.duration_seconds,
+      },
+      { onError: () => toast.error("No se pudo renombrar la pista") },
+    );
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -114,7 +186,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           <ul className="divide-y divide-white/10">
             {tracks?.map((track) => (
               <li key={track.id} className="flex items-center justify-between py-2">
-                <span className="text-sm text-white">{track.name}</span>
+                <EditableTrackName track={track} onRename={(name) => renameTrack(track, name)} />
                 <Button
                   variant="ghost"
                   size="icon"

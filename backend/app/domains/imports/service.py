@@ -18,6 +18,10 @@ AUDIO_EXTENSIONS = {".wav", ".mp3"}
 MIME_TYPES = {".wav": "audio/wav", ".mp3": "audio/mpeg"}
 MAX_EXTRACT_WORKERS = max(1, min(4, os.cpu_count() or 1))
 
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+IMAGE_MIME_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
+COVER_KEYWORDS = ["cover", "portada", "artwork", "folder", "front"]
+
 ORDER_PRIORITY = [
     "click",
     "guide",
@@ -114,6 +118,23 @@ def is_audio_entry(info: zipfile.ZipInfo) -> bool:
     return name.suffix.lower() in AUDIO_EXTENSIONS
 
 
+def is_image_entry(info: zipfile.ZipInfo) -> bool:
+    if info.is_dir():
+        return False
+    name = Path(info.filename)
+    if "__MACOSX" in info.filename or name.name.startswith("."):
+        return False
+    return name.suffix.lower() in IMAGE_EXTENSIONS
+
+
+def _pick_cover_entry(entries: list[zipfile.ZipInfo]) -> zipfile.ZipInfo | None:
+    if not entries:
+        return None
+    named = [e for e in entries if any(k in Path(e.filename).stem.lower() for k in COVER_KEYWORDS)]
+    pool = named or entries
+    return min(pool, key=lambda e: e.filename)
+
+
 def extract_duration_seconds(path: Path) -> float | None:
     try:
         import mutagen
@@ -195,6 +216,7 @@ def process_zip_import(job_id: int) -> None:
 
         with zipfile.ZipFile(job.zip_storage_path) as zf:
             entries = [info for info in zf.infolist() if is_audio_entry(info)]
+            image_entries = [info for info in zf.infolist() if is_image_entry(info)]
         if not entries:
             raise ValueError("El ZIP no contiene archivos de audio válidos (.wav o .mp3)")
 
@@ -254,11 +276,36 @@ def process_zip_import(job_id: int) -> None:
             db.add(track)
         db.commit()
 
+        song = db.get(Song, job.song_id)
+
         max_duration = db.scalar(select(func.max(Track.duration_seconds)).where(Track.song_id == job.song_id))
-        if max_duration:
-            song = db.get(Song, job.song_id)
-            if song is not None:
-                song.duration_seconds = max_duration
+        if max_duration and song is not None:
+            song.duration_seconds = max_duration
+
+        cover_entry = _pick_cover_entry(image_entries)
+        if cover_entry is not None and song is not None:
+            covers_dir = Path(settings.STORAGE_PATH) / "covers"
+            covers_dir.mkdir(parents=True, exist_ok=True)
+            extension = Path(cover_entry.filename).suffix.lower()
+            cover_filename = f"{uuid.uuid4().hex}{extension}"
+            cover_destination = covers_dir / cover_filename
+
+            with zipfile.ZipFile(job.zip_storage_path) as zf, zf.open(cover_entry) as src, cover_destination.open(
+                "wb"
+            ) as out:
+                while chunk := src.read(1024 * 1024):
+                    out.write(chunk)
+
+            cover_file = AudioFile(
+                original_filename=Path(cover_entry.filename).name,
+                storage_path=str(cover_destination),
+                mime_type=IMAGE_MIME_TYPES.get(extension, "application/octet-stream"),
+                size_bytes=cover_destination.stat().st_size,
+                uploaded_by_id=job.owner_id,
+            )
+            db.add(cover_file)
+            db.flush()
+            song.cover_image_url = str(cover_file.id)
 
         job.status = "completed"
         db.commit()

@@ -100,6 +100,14 @@ export function buildAuthenticatedStorageUrl(fileId: string): string {
   return `${API_URL}/storage/${fileId}${params}`;
 }
 
+/** cover_image_url can be an external URL (typed manually) or an internal
+ * storage file id (extracted automatically from a ZIP import). */
+export function resolveCoverImageUrl(coverImageUrl: string | null | undefined): string | null {
+  if (!coverImageUrl) return null;
+  if (/^https?:\/\//i.test(coverImageUrl)) return coverImageUrl;
+  return buildAuthenticatedStorageUrl(coverImageUrl);
+}
+
 export async function apiFetchBlob(path: string, signal?: AbortSignal): Promise<Blob> {
   const accessToken = useAuthStore.getState().accessToken;
 
