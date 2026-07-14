@@ -84,3 +84,12 @@ export function useDeleteMarker(songId: number) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["markers", songId] }),
   });
 }
+
+export function useAutoDetectMarkers(songId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<ISongMarker[]>(`/playback/markers/auto-detect?song_id=${songId}`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["markers", songId] }),
+  });
+}

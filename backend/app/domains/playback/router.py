@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.domains.playback.models import SongMarker
 from app.domains.playback.schemas import SongMarkerCreate, SongMarkerRead, SongMarkerUpdate
 from app.domains.playback.service import (
+    auto_detect_markers,
     create_marker,
     delete_marker,
     get_marker,
@@ -15,6 +16,7 @@ from app.domains.playback.service import (
     update_marker,
 )
 from app.domains.songs.service import get_song
+from app.domains.tracks.service import list_tracks_by_song
 from app.domains.users.models import User
 
 router = APIRouter(prefix="/playback", tags=["playback"])
@@ -50,6 +52,24 @@ def create_marker_endpoint(
 ):
     _ensure_song_owner_or_superuser(db, marker_in.song_id, current_user)
     return create_marker(db, marker_in)
+
+
+@router.post("/markers/auto-detect", response_model=list[SongMarkerRead])
+def auto_detect_markers_endpoint(
+    song_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    _ensure_song_owner_or_superuser(db, song_id, current_user)
+    tracks = list_tracks_by_song(db, song_id)
+    try:
+        return auto_detect_markers(db, song_id, tracks)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="No se pudo analizar el audio"
+        ) from exc
 
 
 @router.put("/markers/{marker_id}", response_model=SongMarkerRead)

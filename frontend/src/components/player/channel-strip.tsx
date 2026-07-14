@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Circle, Pencil, SlidersHorizontal } from "lucide-react";
+import { Circle, Pencil, Settings } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { VerticalMeter } from "@/components/player/vertical-meter";
 import { TRACK_TYPE_ICONS, TRACK_TYPE_LABELS } from "@/lib/track-types";
@@ -71,21 +71,18 @@ export function ChannelStrip({
 
   return (
     <div
-      className={`flex w-24 shrink-0 flex-col items-center gap-2 rounded-lg border pt-0 pb-2.5 transition-colors ${
+      className={`flex min-w-16 flex-1 basis-20 flex-col items-center gap-2 rounded-lg border pt-0 pb-2.5 transition-colors ${
         audible && isPlaying ? "border-white/15 bg-linear-to-b from-white/6 to-white/2" : "border-white/6 bg-white/2"
       }`}
     >
-      {/* Colored instrument header */}
+      {/* Header: icon + S + M + advanced toggle */}
       <div
-        className="flex w-full items-center justify-center gap-1 rounded-t-[7px] py-1.5"
-        style={{ backgroundColor: `${color}22`, borderBottom: `1px solid ${color}55` }}
+        className="flex w-full items-center gap-1 rounded-t-[7px] px-1.5 py-1.5"
+        style={{ backgroundColor: `${color}1a`, borderBottom: `1px solid ${color}55` }}
       >
-        <span title={typeLabel}>
-          <TypeIcon className="size-3.5 shrink-0" style={{ color }} />
+        <span title={typeLabel} className="shrink-0">
+          <TypeIcon className="size-3.5" style={{ color }} />
         </span>
-      </div>
-
-      <div className="flex w-full items-center gap-1 px-2">
         <button
           onClick={onToggleSolo}
           title="Solo"
@@ -109,13 +106,13 @@ export function ChannelStrip({
           M
         </button>
         <button
-          onClick={onToggleArm}
-          title="Arm"
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-all ${
-            armed ? "border-red-500 bg-red-500/80 text-white" : "border-white/15 text-white/40 hover:text-white/70"
+          onClick={() => setExpanded((v) => !v)}
+          title="Controles avanzados"
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors ${
+            expanded ? "text-white/80" : "text-white/30 hover:text-white/60"
           }`}
         >
-          <Circle className="size-2" fill={armed ? "currentColor" : "none"} />
+          <Settings className="size-3" />
         </button>
       </div>
 
@@ -134,7 +131,7 @@ export function ChannelStrip({
 
       <span
         className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums ${
-          clipping ? "bg-red-500/20 text-red-400" : "bg-black/30 text-white/45"
+          clipping ? "bg-red-500/20 text-red-400" : "bg-emerald-400/8 text-white/50"
         }`}
       >
         {dbLabel(db)}
@@ -151,7 +148,7 @@ export function ChannelStrip({
             if (e.key === "Enter") commitRename();
             if (e.key === "Escape") setEditing(false);
           }}
-          className="w-[88%] rounded border border-orange-400/40 bg-black/40 px-1 text-center text-[10px] text-white outline-none"
+          className="w-[90%] rounded border border-orange-400/40 bg-black/40 px-1 text-center text-[10px] text-white outline-none"
         />
       ) : (
         <button
@@ -159,26 +156,27 @@ export function ChannelStrip({
             setEditing(true);
             setEditingName(track.name);
           }}
-          className="group flex w-[88%] items-center justify-center gap-1 truncate text-center text-[10.5px] font-medium text-white/80 hover:text-white"
+          className="flex w-[90%] items-center justify-center gap-1 truncate text-center text-[10.5px] font-semibold uppercase"
+          style={{ color }}
           title={`${track.name} · click para renombrar`}
         >
           <span className="truncate">{track.name}</span>
-          <Pencil className="size-2.5 shrink-0 opacity-0 group-hover:opacity-60" />
+          <Pencil className="size-2.5 shrink-0 opacity-50" />
         </button>
       )}
 
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
-          expanded ? "bg-white/10 text-white/70" : "text-white/30 hover:text-white/60"
-        }`}
-      >
-        <SlidersHorizontal className="size-2.5" />
-        <ChevronDown className={`size-2.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
-      </button>
-
       {expanded && (
         <div className="flex w-full flex-col items-center gap-2 px-2 pt-1">
+          <button
+            onClick={onToggleArm}
+            title="Arm"
+            className={`flex h-5 w-full items-center justify-center gap-1 rounded border font-mono text-[9px] font-bold transition-all ${
+              armed ? "border-red-500 bg-red-500/80 text-white" : "border-white/15 text-white/40 hover:text-white/70"
+            }`}
+          >
+            <Circle className="size-2" fill={armed ? "currentColor" : "none"} /> ARM
+          </button>
+
           <div className="flex w-full items-center gap-1.5">
             <span className="font-mono text-[8px] text-white/30">L</span>
             <Slider

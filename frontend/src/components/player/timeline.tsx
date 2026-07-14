@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, X, ZoomIn } from "lucide-react";
+import { Loader2, Plus, Wand2, X, ZoomIn } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TrackWaveform } from "@/components/player/track-waveform";
-import { useCreateMarker, useDeleteMarker, MARKER_TYPE_COLORS, type ISongMarker, type MarkerType } from "@/hooks/use-markers";
+import {
+  useAutoDetectMarkers,
+  useCreateMarker,
+  useDeleteMarker,
+  MARKER_TYPE_COLORS,
+  type ISongMarker,
+  type MarkerType,
+} from "@/hooks/use-markers";
 
 const MARKER_TYPE_OPTIONS: MarkerType[] = [
   "intro",
@@ -43,6 +50,7 @@ export function Timeline({ songId, mainUrl, markers, currentTime, duration, loop
   const [loopB, setLoopB] = useState<number | null>(null);
   const createMarker = useCreateMarker(songId);
   const deleteMarker = useDeleteMarker(songId);
+  const autoDetect = useAutoDetectMarkers(songId);
 
   const [markerLabel, setMarkerLabel] = useState("");
   const [markerType, setMarkerType] = useState<MarkerType>("cue");
@@ -155,6 +163,22 @@ export function Timeline({ songId, mainUrl, markers, currentTime, duration, loop
           </button>
         )}
 
+        <button
+          onClick={() => {
+            autoDetect.mutate(undefined, {
+              onSuccess: (created) =>
+                toast.success(`Se detectaron ${created.length} secciones automáticamente`),
+              onError: () => toast.error("No se pudo analizar la estructura de la canción"),
+            });
+          }}
+          disabled={autoDetect.isPending}
+          title="Detecta cambios de sección por energía/timbre del audio y crea marcadores editables"
+          className="flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-medium text-violet-300 hover:border-violet-400/50 disabled:opacity-50"
+        >
+          {autoDetect.isPending ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />}
+          Detectar secciones
+        </button>
+
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <button
             onClick={() => setLoopA(currentTime)}
@@ -192,17 +216,45 @@ export function Timeline({ songId, mainUrl, markers, currentTime, duration, loop
       </div>
 
       <div className="overflow-x-auto px-3 py-3">
-        {mainUrl && (
-          <TrackWaveform
-            url={mainUrl}
-            currentTime={currentTime}
-            duration={duration}
-            isMuted={false}
-            onSeek={onSeek}
-            height={64}
-            zoom={zoom}
+        <div className="relative">
+          {/* Colored section overlays directly on the waveform canvas */}
+          {bands.length > 0 && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex">
+              {bands.map(({ marker, widthPct }) => (
+                <div
+                  key={marker.id}
+                  className="relative h-full shrink-0 border-r border-white/10"
+                  style={{ width: `${widthPct}%`, backgroundColor: `${marker.color}26` }}
+                >
+                  <span
+                    className="absolute top-1 left-1.5 truncate text-[9px] font-semibold tracking-wide uppercase"
+                    style={{ color: marker.color, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+                  >
+                    {marker.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Playhead */}
+          <div
+            className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]"
+            style={{ left: `${playheadPct}%` }}
           />
-        )}
+
+          {mainUrl && (
+            <TrackWaveform
+              url={mainUrl}
+              currentTime={currentTime}
+              duration={duration}
+              isMuted={false}
+              onSeek={onSeek}
+              height={64}
+              zoom={zoom}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

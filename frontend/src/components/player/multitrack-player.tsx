@@ -158,7 +158,7 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         <LyricsPanel lines={lyrics ?? []} currentTime={player.currentTime} onSeek={player.seekTo} />
       ) : (
         <div className="rounded-2xl border border-white/6 bg-black/20 p-3">
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex w-full flex-wrap gap-2">
             {tracks.map((track, i) => {
               const level = player.trackLevels.get(track.id) ?? 0;
               const audible = anySolo ? track.is_solo : !track.is_muted;
