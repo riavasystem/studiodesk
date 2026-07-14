@@ -19,17 +19,12 @@ interface IMasterStripProps {
 
 export function MasterStrip({ volume, level, db, clipping, isPlaying, onVolumeChange }: IMasterStripProps) {
   return (
-    <div className="flex w-28 shrink-0 flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/2 p-2.5">
-      <span className="font-mono text-[10px] font-bold tracking-widest text-white/60">MASTER</span>
-
-      <div className="flex w-full flex-col items-center gap-0.5 rounded-md border border-white/6 bg-black/20 px-1.5 py-1">
-        <span className="font-mono text-[8px] tracking-widest text-white/30">LUFS ~</span>
-        <span className={`font-mono text-[11px] tabular-nums ${clipping ? "text-red-400" : "text-white/60"}`}>
-          {dbLabel(db)}
-        </span>
+    <div className="flex w-28 shrink-0 flex-col items-center gap-2 rounded-lg border border-white/12 bg-linear-to-b from-white/6 to-white/2 pt-0 pb-2.5">
+      <div className="flex w-full items-center justify-center rounded-t-[7px] border-b border-orange-400/40 bg-orange-400/10 py-1.5">
+        <span className="font-mono text-[10px] font-bold tracking-widest text-orange-300">MASTER</span>
       </div>
 
-      <div className="flex h-40 items-stretch gap-1.5">
+      <div className="flex h-36 w-full items-stretch justify-center gap-1.5 px-2">
         <VerticalMeter level={level} active={isPlaying} clipping={clipping} />
         <Slider
           orientation="vertical"
@@ -43,7 +38,15 @@ export function MasterStrip({ volume, level, db, clipping, isPlaying, onVolumeCh
       </div>
 
       <span
-        className={`w-full rounded border py-0.5 text-center font-mono text-[9px] font-semibold ${
+        className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums ${
+          clipping ? "bg-red-500/20 text-red-400" : "bg-black/30 text-white/45"
+        }`}
+      >
+        {dbLabel(db)}
+      </span>
+
+      <span
+        className={`w-[88%] rounded border py-0.5 text-center font-mono text-[9px] font-semibold ${
           clipping
             ? "border-red-500 bg-red-500/20 text-red-400"
             : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
