@@ -13,6 +13,7 @@ from app.domains.songs.router import router as songs_router
 from app.domains.storage.router import router as storage_router
 from app.domains.tracks.router import router as tracks_router
 from app.domains.users.router import router as users_router
+from app.domains.youtube.router import router as youtube_router
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -36,6 +37,7 @@ routers = (
     playback_router,
     lyrics_router,
     imports_router,
+    youtube_router,
 )
 
 for domain_router in routers:

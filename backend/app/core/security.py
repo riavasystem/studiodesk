@@ -44,6 +44,15 @@ def create_refresh_token(subject: str) -> str:
     )
 
 
+def create_state_token(subject: str) -> str:
+    """Short-lived token used to carry our user id through an external OAuth
+    redirect (Google doesn't know about our JWTs, so we bind the callback
+    back to the user via this signed `state` param)."""
+    now = datetime.now(UTC)
+    payload = {"sub": subject, "type": "state", "iat": now, "exp": now + timedelta(minutes=10)}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
 def decode_token(token: str) -> dict | None:
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])

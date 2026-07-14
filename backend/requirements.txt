@@ -12,3 +12,4 @@ bcrypt==4.0.1
 python-multipart==0.0.20
 mutagen==1.47.0
 numpy==2.2.1
+httpx==0.28.1

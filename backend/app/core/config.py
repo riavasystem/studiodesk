@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     STORAGE_PATH: str = "/data/salem-studio/storage"
 
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    FRONTEND_URL: str = "http://localhost:3000"
+
+    GOOGLE_OAUTH_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_CLIENT_SECRET: str = ""
+    GOOGLE_OAUTH_REDIRECT_URI: str = ""
 
 
 @lru_cache
