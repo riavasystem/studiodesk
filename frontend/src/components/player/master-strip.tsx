@@ -22,9 +22,9 @@ interface IMasterStripProps {
 export function MasterStrip({ volume, level, db, clipping, isPlaying, onVolumeChange }: IMasterStripProps) {
   return (
     <div className="flex w-28 shrink-0 flex-col items-center gap-2 rounded-lg border border-white/12 bg-linear-to-b from-white/6 to-white/2 pt-0 pb-2.5">
-      <div className="flex w-full items-center justify-center gap-1.5 rounded-t-[7px] border-b border-orange-400/40 bg-orange-400/10 py-1.5">
-        <span title="Ecualizador">
-          <SlidersVertical className="size-3 text-orange-300" />
+      <div className="flex w-full flex-col items-center gap-1.5 rounded-t-[7px] border-b border-orange-400/40 bg-orange-400/10 py-2.5">
+        <span title="Ecualizador" className="flex size-9 items-center justify-center rounded-full bg-orange-400/20">
+          <SlidersVertical className="size-5 text-orange-300" />
         </span>
         <span className="font-mono text-[10px] font-bold tracking-widest text-orange-300">MASTER</span>
       </div>
