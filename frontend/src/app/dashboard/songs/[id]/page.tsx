@@ -20,15 +20,16 @@ import {
 
 interface IEditableTrackNameProps {
   track: ITrack;
+  editing: boolean;
+  onStopEditing: () => void;
   onRename: (name: string) => void;
 }
 
-function EditableTrackName({ track, onRename }: IEditableTrackNameProps) {
-  const [editing, setEditing] = useState(false);
+function EditableTrackName({ track, editing, onStopEditing, onRename }: IEditableTrackNameProps) {
   const [name, setName] = useState(track.name);
 
   const commit = () => {
-    setEditing(false);
+    onStopEditing();
     const trimmed = name.trim();
     if (trimmed && trimmed !== track.name) onRename(trimmed);
     else setName(track.name);
@@ -40,32 +41,21 @@ function EditableTrackName({ track, onRename }: IEditableTrackNameProps) {
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
+        onFocus={(e) => e.target.select()}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") commit();
           if (e.key === "Escape") {
             setName(track.name);
-            setEditing(false);
+            onStopEditing();
           }
         }}
-        className="rounded border border-orange-400/40 bg-black/40 px-2 py-0.5 text-sm text-white outline-none"
+        className="min-w-0 flex-1 rounded border border-orange-400/40 bg-black/40 px-2 py-1 text-sm text-white outline-none"
       />
     );
   }
 
-  return (
-    <button
-      onClick={() => {
-        setName(track.name);
-        setEditing(true);
-      }}
-      className="group flex items-center gap-1.5 text-sm text-white hover:text-orange-300"
-      title="Click para renombrar"
-    >
-      {track.name}
-      <Pencil className="size-3 shrink-0 opacity-0 group-hover:opacity-60" />
-    </button>
-  );
+  return <span className="min-w-0 flex-1 truncate text-sm text-white">{track.name}</span>;
 }
 
 export default function SongDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -104,6 +94,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [editingTrackId, setEditingTrackId] = useState<number | null>(null);
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -185,19 +176,35 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           {isLoading && <p className="text-sm text-white/50">Cargando...</p>}
           <ul className="divide-y divide-white/10">
             {tracks?.map((track) => (
-              <li key={track.id} className="flex items-center justify-between py-2">
-                <EditableTrackName track={track} onRename={(name) => renameTrack(track, name)} />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    deleteTrack.mutate(track.id, {
-                      onError: () => toast.error("No se pudo eliminar la pista"),
-                    })
-                  }
-                >
-                  <Trash2 className="size-4 text-white/40" />
-                </Button>
+              <li key={track.id} className="flex items-center gap-3 py-2">
+                <EditableTrackName
+                  track={track}
+                  editing={editingTrackId === track.id}
+                  onStopEditing={() => setEditingTrackId(null)}
+                  onRename={(name) => renameTrack(track, name)}
+                />
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Renombrar"
+                    onClick={() => setEditingTrackId(track.id)}
+                  >
+                    <Pencil className="size-4 text-white/40" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Eliminar"
+                    onClick={() =>
+                      deleteTrack.mutate(track.id, {
+                        onError: () => toast.error("No se pudo eliminar la pista"),
+                      })
+                    }
+                  >
+                    <Trash2 className="size-4 text-white/40" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

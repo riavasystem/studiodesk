@@ -20,7 +20,7 @@ MAX_EXTRACT_WORKERS = max(1, min(4, os.cpu_count() or 1))
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 IMAGE_MIME_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
-COVER_KEYWORDS = ["cover", "portada", "artwork", "folder", "front"]
+COVER_KEYWORDS = ["cover", "portada", "artwork", "folder", "front", "album"]
 
 ORDER_PRIORITY = [
     "click",
