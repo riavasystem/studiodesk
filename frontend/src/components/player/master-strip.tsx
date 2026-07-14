@@ -1,6 +1,8 @@
 "use client";
 
+import { SlidersVertical } from "lucide-react";
 import { Fader } from "@/components/player/fader";
+import { FaderScale } from "@/components/player/fader-scale";
 import { VerticalMeter } from "@/components/player/vertical-meter";
 
 function dbLabel(db: number): string {
@@ -20,12 +22,16 @@ interface IMasterStripProps {
 export function MasterStrip({ volume, level, db, clipping, isPlaying, onVolumeChange }: IMasterStripProps) {
   return (
     <div className="flex w-28 shrink-0 flex-col items-center gap-2 rounded-lg border border-white/12 bg-linear-to-b from-white/6 to-white/2 pt-0 pb-2.5">
-      <div className="flex w-full items-center justify-center rounded-t-[7px] border-b border-orange-400/40 bg-orange-400/10 py-1.5">
+      <div className="flex w-full items-center justify-center gap-1.5 rounded-t-[7px] border-b border-orange-400/40 bg-orange-400/10 py-1.5">
+        <span title="Ecualizador">
+          <SlidersVertical className="size-3 text-orange-300" />
+        </span>
         <span className="font-mono text-[10px] font-bold tracking-widest text-orange-300">MASTER</span>
       </div>
 
-      <div className="flex h-36 w-full items-stretch justify-center gap-1.5 px-2">
+      <div className="flex h-36 w-full items-stretch justify-center gap-1 px-1.5">
         <VerticalMeter level={level} active={isPlaying} clipping={clipping} />
+        <FaderScale />
         <Fader value={volume} min={0} max={1.5} accent="#ff8a1f" onChange={onVolumeChange} />
       </div>
 

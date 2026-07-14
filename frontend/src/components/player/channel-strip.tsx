@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Circle, Pencil, Settings } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Fader } from "@/components/player/fader";
+import { FaderScale } from "@/components/player/fader-scale";
 import { VerticalMeter } from "@/components/player/vertical-meter";
 import { TRACK_TYPE_ICONS, TRACK_TYPE_LABELS } from "@/lib/track-types";
 import type { ITrack } from "@/hooks/use-tracks";
@@ -72,7 +73,7 @@ export function ChannelStrip({
 
   return (
     <div
-      className={`flex min-w-16 flex-1 basis-20 flex-col items-center gap-2 rounded-lg border pt-0 pb-2.5 transition-colors ${
+      className={`flex min-w-20 flex-1 basis-24 flex-col items-center gap-2 rounded-lg border pt-0 pb-2.5 transition-colors ${
         audible && isPlaying ? "border-white/15 bg-linear-to-b from-white/6 to-white/2" : "border-white/6 bg-white/2"
       }`}
     >
@@ -121,8 +122,9 @@ export function ChannelStrip({
         </button>
       </div>
 
-      <div className="flex h-36 w-full items-stretch justify-center gap-1.5 px-2">
+      <div className="flex h-36 w-full items-stretch justify-center gap-1 px-1.5">
         <VerticalMeter level={level} active={audible} clipping={clipping} />
+        <FaderScale />
         <Fader value={track.volume} min={0} max={2} accent={color} onChange={onVolumeChange} />
       </div>
 
