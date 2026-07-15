@@ -8,7 +8,7 @@ from app.core.deps import get_current_user, get_current_user_header_or_query
 from app.db.session import get_db
 from app.domains.storage.models import AudioFile
 from app.domains.storage.schemas import AudioFileRead
-from app.domains.storage.service import delete_audio_file, get_audio_file, save_audio_file
+from app.domains.storage.service import delete_audio_file, get_audio_file, save_and_extract_audio, save_audio_file
 from app.domains.users.models import User
 
 router = APIRouter(prefix="/storage", tags=["storage"])
@@ -27,6 +27,18 @@ async def upload_audio_file(
 ):
     try:
         return await save_audio_file(db, file, uploaded_by_id=current_user.id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/extract-audio", response_model=AudioFileRead, status_code=status.HTTP_201_CREATED)
+def extract_audio_endpoint(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    file: UploadFile,
+):
+    try:
+        return save_and_extract_audio(db, file, uploaded_by_id=current_user.id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 

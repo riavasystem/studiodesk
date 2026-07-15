@@ -85,6 +85,14 @@ export function useUploadAudio() {
   });
 }
 
+/** Accepts an audio OR video file (e.g. the .mp4 YouTube Studio gives you for
+ * your own uploaded videos) and stores only the extracted audio track. */
+export function useExtractAudio() {
+  return useMutation({
+    mutationFn: (file: File) => apiFetchUpload<IAudioFile>("/storage/extract-audio", file),
+  });
+}
+
 export function useCreateTrack(songId: number) {
   const queryClient = useQueryClient();
   return useMutation({

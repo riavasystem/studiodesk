@@ -14,7 +14,7 @@ import {
   type IYouTubeVideo,
 } from "@/hooks/use-youtube";
 import { useCreateSong } from "@/hooks/use-songs";
-import { useUploadAudio } from "@/hooks/use-tracks";
+import { useExtractAudio } from "@/hooks/use-tracks";
 import type { ITrack } from "@/hooks/use-tracks";
 
 function formatDate(iso: string): string {
@@ -44,7 +44,7 @@ function YouTubeImportContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createSong = useCreateSong();
-  const uploadAudio = useUploadAudio();
+  const extractAudio = useExtractAudio();
 
   useEffect(() => {
     if (searchParams.get("connected")) {
@@ -79,7 +79,7 @@ function YouTubeImportContent() {
         artist: status?.google_email ?? "YouTube",
         cover_image_url: selected.thumbnail_url,
       });
-      const audioFile = await uploadAudio.mutateAsync(file);
+      const audioFile = await extractAudio.mutateAsync(file);
       await apiFetch<ITrack>("/tracks", {
         method: "POST",
         body: {
@@ -192,19 +192,19 @@ function YouTubeImportContent() {
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px]">
                     2
                   </span>
-                  Subí acá el archivo que descargaste para crear la canción.
+                  Subí acá ese archivo (.mp4 está bien) — extraemos el audio a MP3 automáticamente.
                 </li>
               </ol>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="audio/wav,audio/mpeg,audio/mp4,video/mp4,.wav,.mp3,.m4a,.mp4"
+                accept="audio/wav,audio/mpeg,audio/mp4,video/mp4,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
                 className="hidden"
                 onChange={handleFileSelected}
               />
               <Button onClick={() => fileInputRef.current?.click()} disabled={creating} className="self-start">
                 {creating ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                {creating ? "Creando canción..." : "Subir archivo descargado"}
+                {creating ? "Extrayendo audio y creando canción..." : "Subir archivo descargado"}
               </Button>
             </div>
           )}
