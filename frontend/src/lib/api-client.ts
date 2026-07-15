@@ -172,10 +172,15 @@ export function apiFetchUploadWithProgress<T>(
   return { promise, abort: () => xhr.abort() };
 }
 
-export async function apiFetchUpload<T>(path: string, file: File): Promise<T> {
+export async function apiFetchUpload<T>(
+  path: string,
+  file: File,
+  extraFields?: Record<string, string>,
+): Promise<T> {
   const accessToken = useAuthStore.getState().accessToken;
   const formData = new FormData();
   formData.append("file", file);
+  Object.entries(extraFields ?? {}).forEach(([key, value]) => formData.append(key, value));
 
   const doFetch = async (token: string | null) =>
     fetch(`${API_URL}${path}`, {

@@ -67,12 +67,15 @@ jobs:
             "$APP_DIR/shared/venv/bin/pip" install --upgrade pip -q
             "$APP_DIR/shared/venv/bin/pip" install -r "\$RELEASE_DIR/backend/requirements.txt" -q
 
+            "$APP_DIR/shared/venv-worker/bin/pip" install -r "\$RELEASE_DIR/backend/requirements-worker.txt" -q
+
             cd "\$RELEASE_DIR/backend"
             "$APP_DIR/shared/venv/bin/alembic" upgrade head
 
             ln -sfn "\$RELEASE_DIR" "$APP_DIR/current"
 
             sudo systemctl restart studiodesk-api
+            sudo systemctl restart studiodesk-stem-worker
             sudo systemctl reload nginx
 
             cd "$APP_DIR/releases" && ls -1t | tail -n +6 | xargs -r rm -rf

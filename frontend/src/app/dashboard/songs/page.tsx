@@ -20,6 +20,7 @@ import { useCreateSong, useDeleteSong, useSongs } from "@/hooks/use-songs";
 import { useCategories } from "@/hooks/use-categories";
 import { useAlbums } from "@/hooks/use-albums";
 import { ImportZipDialog } from "@/components/songs/import-zip-dialog";
+import { UploadSongDialog } from "@/components/songs/upload-song-dialog";
 import { resolveCoverImageUrl } from "@/lib/api-client";
 
 const NONE_VALUE = "none";
@@ -45,6 +46,7 @@ export default function SongsPage() {
 
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [bpm, setBpm] = useState("");
@@ -97,7 +99,12 @@ export default function SongsPage() {
             <FileArchive className="size-4" />
             Importar ZIP
           </Button>
+          <Button variant="outline" onClick={() => setUploadOpen(true)}>
+            <Music2 className="size-4" />
+            Subir canción
+          </Button>
           <ImportZipDialog open={importOpen} onOpenChange={setImportOpen} />
+          <UploadSongDialog open={uploadOpen} onOpenChange={setUploadOpen} />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger render={<Button>Nueva canción</Button>} />
           <DialogContent>

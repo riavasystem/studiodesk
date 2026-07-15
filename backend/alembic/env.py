@@ -22,6 +22,7 @@ from app.domains.playback.models import SongMarker  # noqa: E402,F401
 from app.domains.lyrics.models import LyricLine  # noqa: E402,F401
 from app.domains.imports.models import ImportJob  # noqa: E402,F401
 from app.domains.youtube.models import YouTubeCredential  # noqa: E402,F401
+from app.domains.stems.models import StemJob  # noqa: E402,F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

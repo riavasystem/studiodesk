@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, Loader2, LogOut, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiFetch } from "@/lib/api-client";
 import {
   useDisconnectYouTube,
   useYouTubeAuthUrl,
@@ -14,12 +13,24 @@ import {
   type IYouTubeVideo,
 } from "@/hooks/use-youtube";
 import { useCreateSong } from "@/hooks/use-songs";
-import { useExtractAudio } from "@/hooks/use-tracks";
-import type { ITrack } from "@/hooks/use-tracks";
+import { useSeparateStems, useStemJob } from "@/hooks/use-stems";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("es-CL", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function stemStatusLabel(status?: string): string {
+  switch (status) {
+    case "converting":
+      return "Convirtiendo audio...";
+    case "processing":
+      return "Separando pistas (voz, batería, bajo, otros)...";
+    case "completed":
+      return "¡Listo!";
+    default:
+      return "Subiendo archivo...";
+  }
 }
 
 export default function YouTubeImportPage() {
@@ -41,10 +52,26 @@ function YouTubeImportContent() {
 
   const [selected, setSelected] = useState<IYouTubeVideo | null>(null);
   const [creating, setCreating] = useState(false);
+  const [songId, setSongId] = useState<number | null>(null);
+  const [jobId, setJobId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createSong = useCreateSong();
-  const extractAudio = useExtractAudio();
+  const separateStems = useSeparateStems();
+  const { data: stemJob } = useStemJob(jobId);
+
+  useEffect(() => {
+    if (!songId) return;
+    if (stemJob?.status === "completed") {
+      toast.success("Canción separada en pistas");
+      router.push(`/dashboard/songs/${songId}`);
+    } else if (stemJob?.status === "failed") {
+      toast.error(stemJob.error_message ?? "No se pudo separar la canción");
+      setCreating(false);
+      setJobId(null);
+      setSongId(null);
+    }
+  }, [stemJob, songId, router]);
 
   useEffect(() => {
     if (searchParams.get("connected")) {
@@ -79,21 +106,11 @@ function YouTubeImportContent() {
         artist: status?.google_email ?? "YouTube",
         cover_image_url: selected.thumbnail_url,
       });
-      const audioFile = await extractAudio.mutateAsync(file);
-      await apiFetch<ITrack>("/tracks", {
-        method: "POST",
-        body: {
-          song_id: song.id,
-          name: selected.title,
-          file_path: String(audioFile.id),
-          order_index: 0,
-        },
-      });
-      toast.success("Canción creada");
-      router.push(`/dashboard/songs/${song.id}`);
+      setSongId(song.id);
+      const job = await separateStems.mutateAsync({ file, songId: song.id });
+      setJobId(job.id);
     } catch {
       toast.error("No se pudo crear la canción a partir del archivo");
-    } finally {
       setCreating(false);
     }
   };
@@ -192,7 +209,8 @@ function YouTubeImportContent() {
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px]">
                     2
                   </span>
-                  Subí acá ese archivo (.mp4 está bien) — extraemos el audio a MP3 automáticamente.
+                  Subí acá ese archivo (.mp4 está bien) — separamos automáticamente voz, batería, bajo y otros
+                  instrumentos.
                 </li>
               </ol>
               <input
@@ -204,8 +222,13 @@ function YouTubeImportContent() {
               />
               <Button onClick={() => fileInputRef.current?.click()} disabled={creating} className="self-start">
                 {creating ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                {creating ? "Extrayendo audio y creando canción..." : "Subir archivo descargado"}
+                {creating ? stemStatusLabel(stemJob?.status) : "Subir archivo descargado"}
               </Button>
+              {creating && (
+                <p className="text-xs text-white/40">
+                  La separación por IA puede tardar varios minutos según el largo de la canción.
+                </p>
+              )}
             </div>
           )}
         </>

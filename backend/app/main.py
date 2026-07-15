@@ -10,6 +10,7 @@ from app.domains.lyrics.router import router as lyrics_router
 from app.domains.playback.router import router as playback_router
 from app.domains.playlists.router import router as playlists_router
 from app.domains.songs.router import router as songs_router
+from app.domains.stems.router import router as stems_router
 from app.domains.storage.router import router as storage_router
 from app.domains.tracks.router import router as tracks_router
 from app.domains.users.router import router as users_router
@@ -38,6 +39,7 @@ routers = (
     lyrics_router,
     imports_router,
     youtube_router,
+    stems_router,
 )
 
 for domain_router in routers:
