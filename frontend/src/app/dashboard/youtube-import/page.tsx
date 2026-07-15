@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, Loader2, LogOut, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MusicLoader } from "@/components/ui/music-loader";
 import {
   useDisconnectYouTube,
   useYouTubeAuthUrl,
@@ -25,7 +26,7 @@ function stemStatusLabel(status?: string): string {
     case "converting":
       return "Convirtiendo audio...";
     case "processing":
-      return "Separando pistas (voz, batería, bajo, otros)...";
+      return "Separando pistas (voz, batería, bajo, guitarra, piano, otros)...";
     case "completed":
       return "¡Listo!";
     default:
@@ -187,7 +188,7 @@ function YouTubeImportContent() {
             </div>
           )}
 
-          {selected && (
+          {selected && !creating && (
             <div className="flex flex-col gap-3 rounded-2xl border border-orange-400/30 bg-orange-400/5 p-5">
               <p className="text-sm font-medium text-white">Video seleccionado: {selected.title}</p>
               <ol className="flex flex-col gap-2 text-sm text-white/60">
@@ -209,8 +210,8 @@ function YouTubeImportContent() {
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px]">
                     2
                   </span>
-                  Subí acá ese archivo (.mp4 está bien) — separamos automáticamente voz, batería, bajo y otros
-                  instrumentos.
+                  Subí acá ese archivo (.mp4 está bien) — separamos automáticamente voz, batería, bajo, guitarra,
+                  piano y otros instrumentos.
                 </li>
               </ol>
               <input
@@ -220,15 +221,16 @@ function YouTubeImportContent() {
                 className="hidden"
                 onChange={handleFileSelected}
               />
-              <Button onClick={() => fileInputRef.current?.click()} disabled={creating} className="self-start">
-                {creating ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                {creating ? stemStatusLabel(stemJob?.status) : "Subir archivo descargado"}
+              <Button onClick={() => fileInputRef.current?.click()} className="self-start">
+                <Upload className="size-4" />
+                Subir archivo descargado
               </Button>
-              {creating && (
-                <p className="text-xs text-white/40">
-                  La separación por IA puede tardar varios minutos según el largo de la canción.
-                </p>
-              )}
+            </div>
+          )}
+
+          {creating && (
+            <div className="rounded-2xl border border-orange-400/30 bg-orange-400/5 p-5">
+              <MusicLoader label={stemStatusLabel(stemJob?.status)} />
             </div>
           )}
         </>

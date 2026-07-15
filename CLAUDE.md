@@ -17,7 +17,7 @@ La primera versión NO utilizará Inteligencia Artificial.
 
 La separación automática mediante IA será considerada únicamente como una futura versión del producto.
 
-**Excepción v2 — separación de stems con IA (Demucs):** habilitada como excepción puntual dentro de v1, ya en progreso. Usa Demucs (Meta AI Research), un modelo gratuito y open source, corriendo en el mismo servidor de Hetzner (sin GPU, sin APIs de pago, sin servidores adicionales). Ver la sección "REPRODUCTOR" y el ejemplo de estructura de canción más abajo para el detalle de la limitación de 4 stems.
+**Excepción v2 — separación de stems con IA (Demucs):** habilitada como excepción puntual dentro de v1, ya en progreso. Usa Demucs (Meta AI Research), un modelo gratuito y open source, corriendo en el mismo servidor de Hetzner (sin GPU, sin APIs de pago, sin servidores adicionales). Ver la sección "REPRODUCTOR" y el ejemplo de estructura de canción más abajo para el detalle de la limitación de 6 stems.
 
 ---
 
@@ -253,7 +253,7 @@ Canción
 
 └── Cue
 
-**Nota sobre separación automática por IA:** la separación automática (Demucs, gratuito, corriendo por CPU en el servidor actual) solo entrega 4 stems fijos: voz, batería, bajo y "otros" (guitarra, piano, pads, sintes, etc. quedan mezclados en un solo track). No reproduce el árbol completo de instrumentos de este ejemplo — separar el resto de pistas individuales sigue siendo trabajo manual del usuario.
+**Nota sobre separación automática por IA:** la separación automática (Demucs `htdemucs_6s`, gratuito, corriendo por CPU en el servidor actual) entrega 6 stems fijos: voz, batería, bajo, guitarra, piano y "otros" (pads, sintes, cuerdas, metales, etc. quedan mezclados en ese último track). No reproduce el árbol completo de instrumentos de este ejemplo (coros separados de voz principal, click, cue) — eso sigue siendo trabajo manual del usuario.
 
 Cada pista será completamente independiente.
 
@@ -559,7 +559,7 @@ Estas funcionalidades NO pertenecen a la versión inicial.
 
 Versión 2
 
-- IA para separación automática de instrumentos. **(EN PROGRESO — ver "Excepción v2" al inicio del documento. Implementado con Demucs, gratuito/open source, 4 stems: voz/batería/bajo/otros, corriendo en el servidor Hetzner actual sin GPU.)**
+- IA para separación automática de instrumentos. **(EN PROGRESO — ver "Excepción v2" al inicio del documento. Implementado con Demucs (`htdemucs_6s`), gratuito/open source, 6 stems: voz/batería/bajo/guitarra/piano/otros, corriendo en el servidor Hetzner actual sin GPU.)**
 - IA para eliminación de voz.
 - IA para detección automática de BPM.
 - IA para cambio automático de tono.

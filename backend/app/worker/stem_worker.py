@@ -32,16 +32,22 @@ logger = logging.getLogger("stem_worker")
 POLL_INTERVAL_SECONDS = 5
 DEMUCS_TIMEOUT_SECONDS = 1800
 
+DEMUCS_MODEL = "htdemucs_6s"
+
 STEM_TRACK_TYPES = {
     "vocals": "lead_vocal",
     "drums": "drums",
     "bass": "bass",
+    "guitar": "guitar_electric",
+    "piano": "piano",
     "other": "other",
 }
 STEM_NAMES = {
     "vocals": "Voces",
     "drums": "Batería",
     "bass": "Bajo",
+    "guitar": "Guitarra",
+    "piano": "Piano",
     "other": "Otros instrumentos",
 }
 
@@ -122,7 +128,7 @@ def run_job(job_id: int) -> None:
         subprocess.run(
             [
                 sys.executable, "-m", "demucs",
-                "-n", "htdemucs",
+                "-n", DEMUCS_MODEL,
                 "--mp3",
                 "-o", str(output_dir),
                 str(mp3_path),
@@ -132,7 +138,7 @@ def run_job(job_id: int) -> None:
             timeout=DEMUCS_TIMEOUT_SECONDS,
         )
 
-        stems_dir = output_dir / "htdemucs" / mp3_path.stem
+        stems_dir = output_dir / DEMUCS_MODEL / mp3_path.stem
         audio_dir = Path(settings.STORAGE_PATH) / "audio"
         audio_dir.mkdir(parents=True, exist_ok=True)
 

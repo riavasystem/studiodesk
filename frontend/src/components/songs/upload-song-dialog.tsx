@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Music2 } from "lucide-react";
+import { Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MusicLoader } from "@/components/ui/music-loader";
 import { useCreateSong } from "@/hooks/use-songs";
 import { useSeparateStems, useStemJob } from "@/hooks/use-stems";
 
@@ -16,7 +17,7 @@ function stemStatusLabel(status?: string): string {
     case "converting":
       return "Convirtiendo audio...";
     case "processing":
-      return "Separando pistas (voz, batería, bajo, otros)...";
+      return "Separando pistas (voz, batería, bajo, guitarra, piano, otros)...";
     default:
       return "Subiendo archivo...";
   }
@@ -90,34 +91,38 @@ export function UploadSongDialog({ open, onOpenChange }: IUploadSongDialogProps)
           <DialogTitle>Subir canción</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="upload-title">Título</Label>
-            <Input id="upload-title" value={title} onChange={(e) => setTitle(e.target.value)} required disabled={submitting} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="upload-artist">Artista</Label>
-            <Input id="upload-artist" value={artist} onChange={(e) => setArtist(e.target.value)} disabled={submitting} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="upload-file">Archivo (.mp3 o .mp4)</Label>
-            <input
-              id="upload-file"
-              type="file"
-              accept="audio/wav,audio/mpeg,audio/mp4,video/mp4,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
-              disabled={submitting}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="text-sm text-white/70 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-xs file:text-white/80"
-            />
-            <p className="text-xs text-white/40">
-              Separamos automáticamente voz, batería, bajo y otros instrumentos (puede tardar varios minutos).
-            </p>
-          </div>
-          <Button type="submit" disabled={submitting || !file || !title.trim()} className="mt-1 self-start">
-            {submitting ? <Loader2 className="size-4 animate-spin" /> : <Music2 className="size-4" />}
-            {submitting ? stemStatusLabel(stemJob?.status) : "Subir y separar"}
-          </Button>
-        </form>
+        {submitting ? (
+          <MusicLoader label={stemStatusLabel(stemJob?.status)} />
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="upload-title">Título</Label>
+              <Input id="upload-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="upload-artist">Artista</Label>
+              <Input id="upload-artist" value={artist} onChange={(e) => setArtist(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="upload-file">Archivo (.mp3 o .mp4)</Label>
+              <input
+                id="upload-file"
+                type="file"
+                accept="audio/wav,audio/mpeg,audio/mp4,video/mp4,.wav,.mp3,.m4a,.mp4,.mov,.webm,.mkv"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="text-sm text-white/70 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-xs file:text-white/80"
+              />
+              <p className="text-xs text-white/40">
+                Separamos automáticamente voz, batería, bajo, guitarra, piano y otros instrumentos (puede tardar
+              varios minutos).
+              </p>
+            </div>
+            <Button type="submit" disabled={!file || !title.trim()} className="mt-1 self-start">
+              <Music2 className="size-4" />
+              Subir y separar
+            </Button>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
