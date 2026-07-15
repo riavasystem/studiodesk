@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -14,12 +15,14 @@ from app.domains.youtube.service import (
     build_auth_url,
     delete_credential,
     exchange_code_for_tokens,
-    fetch_google_email,
+    fetch_channel_title,
     get_credential,
     get_valid_access_token,
     list_my_videos,
     upsert_credential,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/youtube", tags=["youtube"])
 
@@ -51,9 +54,10 @@ async def oauth_callback(
     try:
         user_id = int(payload["sub"])
         token_data = await exchange_code_for_tokens(code)
-        google_email = await fetch_google_email(token_data["access_token"])
-        upsert_credential(db, user_id, google_email, token_data)
+        channel_title = await fetch_channel_title(token_data["access_token"])
+        upsert_credential(db, user_id, channel_title, token_data)
     except Exception:
+        logger.exception("YouTube OAuth callback failed")
         return RedirectResponse(f"{settings.FRONTEND_URL}/dashboard/youtube-import?error=1")
 
     return RedirectResponse(f"{settings.FRONTEND_URL}/dashboard/youtube-import?connected=1")

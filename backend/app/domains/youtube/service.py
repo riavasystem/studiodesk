@@ -9,7 +9,6 @@ from app.domains.youtube.models import YouTubeCredential
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
-GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
 
@@ -43,13 +42,18 @@ async def exchange_code_for_tokens(code: str) -> dict:
         return response.json()
 
 
-async def fetch_google_email(access_token: str) -> str:
+async def fetch_channel_title(access_token: str) -> str:
+    """We only request the youtube.readonly scope (not userinfo.email), so we
+    identify the connected account by its YouTube channel name instead."""
     async with httpx.AsyncClient(timeout=15) as client:
         response = await client.get(
-            GOOGLE_USERINFO_URL, headers={"Authorization": f"Bearer {access_token}"}
+            f"{YOUTUBE_API_BASE}/channels",
+            params={"part": "snippet", "mine": "true"},
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         response.raise_for_status()
-        return response.json().get("email", "")
+        items = response.json().get("items", [])
+        return items[0]["snippet"]["title"] if items else "tu canal"
 
 
 def upsert_credential(db: Session, user_id: int, google_email: str, token_data: dict) -> YouTubeCredential:
