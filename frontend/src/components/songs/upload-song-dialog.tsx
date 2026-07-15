@@ -92,7 +92,7 @@ export function UploadSongDialog({ open, onOpenChange }: IUploadSongDialogProps)
         </DialogHeader>
 
         {submitting ? (
-          <MusicLoader label={stemStatusLabel(stemJob?.status)} />
+          <MusicLoader label={stemStatusLabel(stemJob?.status)} progress={stemJob?.progress_percent} />
         ) : (
           <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">

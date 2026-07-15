@@ -230,7 +230,7 @@ function YouTubeImportContent() {
 
           {creating && (
             <div className="rounded-2xl border border-orange-400/30 bg-orange-400/5 p-5">
-              <MusicLoader label={stemStatusLabel(stemJob?.status)} />
+              <MusicLoader label={stemStatusLabel(stemJob?.status)} progress={stemJob?.progress_percent} />
             </div>
           )}
         </>

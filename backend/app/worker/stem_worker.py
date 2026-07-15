@@ -7,9 +7,11 @@ Invoked as: python -m app.worker.stem_worker
 """
 
 import logging
+import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -50,6 +52,15 @@ STEM_NAMES = {
     "piano": "Piano",
     "other": "Otros instrumentos",
 }
+
+# demucs prints a tqdm progress bar to stderr like "  42%|####  | 2.4/5.7 [..]"
+DEMUCS_PROGRESS_RE = re.compile(r"(\d+)%\|")
+
+# Stage weights within the overall 0-100 progress shown to the user.
+PROGRESS_CONVERTING = 5
+PROGRESS_DEMUCS_START = 10
+PROGRESS_DEMUCS_END = 95
+PROGRESS_COMPLETED = 100
 
 
 def _now() -> datetime:
@@ -108,6 +119,35 @@ def ensure_mp3(source_path: Path) -> Path:
     return mp3_path
 
 
+def run_demucs_with_progress(cmd: list[str], job: StemJob, db) -> None:
+    """Runs demucs, parsing its own tqdm progress output (0-100% of the audio
+    processed) to keep job.progress_percent updating live instead of sitting
+    frozen while the CPU-bound separation runs for several minutes."""
+    process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, bufsize=1)
+    watchdog = threading.Timer(DEMUCS_TIMEOUT_SECONDS, process.kill)
+    watchdog.start()
+    try:
+        last_committed = -1
+        assert process.stderr is not None
+        for line in process.stderr:
+            match = DEMUCS_PROGRESS_RE.search(line)
+            if match is None:
+                continue
+            demucs_pct = min(100, int(match.group(1)))
+            mapped = PROGRESS_DEMUCS_START + round(
+                (PROGRESS_DEMUCS_END - PROGRESS_DEMUCS_START) * demucs_pct / 100
+            )
+            if mapped != last_committed:
+                job.progress_percent = mapped
+                db.commit()
+                last_committed = mapped
+        process.wait()
+    finally:
+        watchdog.cancel()
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, cmd)
+
+
 def run_job(job_id: int) -> None:
     db = SessionLocal()
     job: StemJob | None = None
@@ -119,13 +159,16 @@ def run_job(job_id: int) -> None:
             return
         source_path = Path(job.source_storage_path)
 
+        job.progress_percent = PROGRESS_CONVERTING
+        db.commit()
         mp3_path = ensure_mp3(source_path)
 
         job.status = "processing"
+        job.progress_percent = PROGRESS_DEMUCS_START
         db.commit()
 
         output_dir = Path(settings.STORAGE_PATH) / "tmp" / f"demucs_{job.id}"
-        subprocess.run(
+        run_demucs_with_progress(
             [
                 sys.executable, "-m", "demucs",
                 "-n", DEMUCS_MODEL,
@@ -133,9 +176,8 @@ def run_job(job_id: int) -> None:
                 "-o", str(output_dir),
                 str(mp3_path),
             ],
-            check=True,
-            capture_output=True,
-            timeout=DEMUCS_TIMEOUT_SECONDS,
+            job,
+            db,
         )
 
         stems_dir = output_dir / DEMUCS_MODEL / mp3_path.stem
@@ -169,9 +211,13 @@ def run_job(job_id: int) -> None:
                 )
             )
             job.stems_created = order_index + 1
+            job.progress_percent = min(
+                PROGRESS_COMPLETED - 1, PROGRESS_DEMUCS_END + job.stems_created
+            )
             db.commit()
 
         job.status = "completed"
+        job.progress_percent = PROGRESS_COMPLETED
         job.finished_at = _now()
         db.commit()
         logger.info("Job %d completed", job_id)

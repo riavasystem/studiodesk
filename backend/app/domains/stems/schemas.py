@@ -13,6 +13,7 @@ class StemJobRead(BaseModel):
     original_filename: str
     duration_seconds: float | None
     stems_created: int
+    progress_percent: int
     error_message: str | None
     created_at: datetime
     updated_at: datetime

@@ -11,6 +11,7 @@ export interface IStemJob {
   original_filename: string;
   duration_seconds: number | null;
   stems_created: number;
+  progress_percent: number;
   error_message: string | null;
   created_at: string;
   updated_at: string;

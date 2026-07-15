@@ -18,6 +18,7 @@ class StemJob(TimestampedBase):
     source_storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
     duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     stems_created: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
