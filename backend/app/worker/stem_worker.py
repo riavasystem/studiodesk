@@ -20,9 +20,11 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.domains.imports.service import TRACK_TYPE_COLORS
+from app.domains.songs.models import Song  # noqa: F401 (registers FK target for StemJob.song_id)
 from app.domains.stems.models import StemJob
 from app.domains.storage.models import AudioFile
 from app.domains.tracks.models import Track
+from app.domains.users.models import User  # noqa: F401 (registers FK target for StemJob.owner_id)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("stem_worker")
