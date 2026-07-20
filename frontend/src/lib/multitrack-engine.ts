@@ -45,8 +45,10 @@ const MAX_CONCURRENT_TRACK_LOADS = 4;
 export class MultitrackEngine {
   private nodes = new Map<number, ITrackNode>();
   private loaded = false;
-  private baseBpm = 120;
   private playbackRate = 1;
+  // The click's own speed, entirely independent of `playbackRate` (the song's
+  // overall playback speed) — changing one must never move the other.
+  private metronomeBpm = 120;
 
   private masterGain = new Tone.Gain(1);
   private limiter = new Tone.Limiter(-1);
@@ -122,12 +124,27 @@ export class MultitrackEngine {
 
   setMetronome(enabled: boolean) {
     if (enabled && this.metronomeEventId === null) {
+      // A plain-seconds interval (not a "4n" subdivision) keeps the click's
+      // timing off Transport.bpm entirely, so it never moves when the song's
+      // own playback-rate ("Tempo") changes.
       this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
         this.triggerMetronomeClick(time);
-      }, "4n");
+      }, 60 / this.metronomeBpm);
     } else if (!enabled && this.metronomeEventId !== null) {
       Tone.getTransport().clear(this.metronomeEventId);
       this.metronomeEventId = null;
+    }
+  }
+
+  setMetronomeBpm(bpm: number) {
+    this.metronomeBpm = bpm > 0 ? bpm : 120;
+    if (this.metronomeEventId !== null) {
+      // scheduleRepeat's interval is fixed at call time — re-schedule so a
+      // live change takes effect immediately instead of on the next toggle.
+      Tone.getTransport().clear(this.metronomeEventId);
+      this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
+        this.triggerMetronomeClick(time);
+      }, 60 / this.metronomeBpm);
     }
   }
 
@@ -242,6 +259,17 @@ export class MultitrackEngine {
     if (node) node.gain.gain.rampTo(volume, 0.05);
   }
 
+  /** Current (possibly mid-ramp) gain value — used to drive the fader's
+   * visual position so it actually moves during an F-key fade, not just
+   * the VU meter. */
+  getTrackVolume(id: number): number {
+    return this.nodes.get(id)?.gain.gain.value ?? 0;
+  }
+
+  getMetronomeVolume(): number {
+    return this.metronomeGain.gain.value;
+  }
+
   setTrackPan(id: number, pan: number) {
     const node = this.nodes.get(id);
     if (node) node.panner.pan.rampTo(pan, 0.05);
@@ -344,14 +372,8 @@ export class MultitrackEngine {
     for (const node of this.nodes.values()) node.pitchShift.pitch = semitones;
   }
 
-  setBaseBpm(bpm: number) {
-    this.baseBpm = bpm > 0 ? bpm : 120;
-    Tone.getTransport().bpm.value = this.baseBpm * this.playbackRate;
-  }
-
   setTempo(playbackRate: number) {
     this.playbackRate = playbackRate;
-    Tone.getTransport().bpm.value = this.baseBpm * playbackRate;
     for (const node of this.nodes.values()) node.player.playbackRate = playbackRate;
   }
 

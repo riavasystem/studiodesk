@@ -17,6 +17,7 @@ function dbLabel(db: number): string {
 interface IChannelStripProps {
   track: ITrack;
   color: string;
+  displayVolume: number;
   level: number;
   db: number;
   clipping: boolean;
@@ -38,6 +39,7 @@ interface IChannelStripProps {
 export function ChannelStrip({
   track,
   color,
+  displayVolume,
   level,
   db,
   clipping,
@@ -125,7 +127,7 @@ export function ChannelStrip({
       <div className="flex h-36 w-full items-stretch justify-center gap-1 px-1.5">
         <VerticalMeter level={level} active={audible} clipping={clipping} />
         <FaderScale />
-        <Fader value={track.volume} min={0} max={2} accent={color} onChange={onVolumeChange} />
+        <Fader value={displayVolume} min={0} max={2} accent={color} onChange={onVolumeChange} />
       </div>
 
       <span

@@ -10,7 +10,9 @@ from app.domains.tracks.models import Track
 
 AUTO_SECTION_PREFIX = "Sección "
 _REFERENCE_TRACK_TYPES = ["guide", "lead_vocal", "backing_vocal", "choir"]
-_SECTION_COLORS = ["#38bdf8", "#34d399", "#f97316", "#a78bfa", "#f472b6", "#facc15", "#fb7185", "#22d3ee"]
+# Evenly spread across the hue wheel so no two colors (including adjacent
+# ones, which sit next to each other on the timeline) read as similar.
+_SECTION_COLORS = ["#f87171", "#fb923c", "#facc15", "#4ade80", "#22d3ee", "#60a5fa", "#a78bfa", "#f472b6"]
 
 
 def get_marker(db: Session, marker_id: int) -> SongMarker | None:

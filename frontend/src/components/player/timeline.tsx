@@ -61,7 +61,27 @@ export function Timeline({
   const [zoom, setZoom] = useState(0);
   const [dragBoundary, setDragBoundary] = useState<{ index: number; time: number } | null>(null);
   const [addDialogForMarkerId, setAddDialogForMarkerId] = useState<number | null>(null);
+  const [renamingMarkerId, setRenamingMarkerId] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  const commitRename = (marker: ISongMarker) => {
+    const label = renameDraft.trim();
+    setRenamingMarkerId(null);
+    if (!label || label === marker.label) return;
+    updateMarker.mutate(
+      {
+        id: marker.id,
+        label,
+        marker_type: marker.marker_type,
+        color: marker.color,
+        position_seconds: marker.position_seconds,
+        end_time_seconds: marker.end_time_seconds,
+        loop_end_seconds: marker.loop_end_seconds,
+      },
+      { onError: () => toast.error("No se pudo renombrar la sección") },
+    );
+  };
 
   const sorted = [...(markers ?? [])].sort((a, b) => a.position_seconds - b.position_seconds);
   const bands = sorted.map((marker, index) => {
@@ -227,13 +247,39 @@ export function Timeline({
                     } ${isPending ? "outline-dashed outline-2 -outline-offset-2 outline-white/60" : ""}`}
                     style={{ width: `${widthPct}%`, backgroundColor: `${marker.color}26` }}
                   >
-                    <span
-                      className="absolute top-1 left-1.5 flex items-center gap-1 truncate text-[9px] font-semibold tracking-wide uppercase"
-                      style={{ color: marker.color, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
-                    >
-                      {marker.label}
-                      {isPending && <Clock3 className="size-2.5 shrink-0" />}
-                    </span>
+                    {editMode && renamingMarkerId === marker.id ? (
+                      <input
+                        autoFocus
+                        value={renameDraft}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        onBlur={() => commitRename(marker)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename(marker);
+                          if (e.key === "Escape") setRenamingMarkerId(null);
+                        }}
+                        className="absolute top-1 left-1.5 z-20 w-[calc(100%-0.75rem)] rounded border border-white/30 bg-black/80 px-1 text-[9px] font-semibold text-white uppercase outline-none"
+                      />
+                    ) : (
+                      <span
+                        onClick={
+                          editMode
+                            ? (e) => {
+                                e.stopPropagation();
+                                setRenameDraft(marker.label);
+                                setRenamingMarkerId(marker.id);
+                              }
+                            : undefined
+                        }
+                        title={editMode ? "Click para renombrar" : undefined}
+                        className={`absolute top-1 left-1.5 flex items-center gap-1 truncate text-[9px] font-semibold tracking-wide uppercase ${editMode ? "cursor-text hover:underline" : ""}`}
+                        style={{ color: marker.color, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+                      >
+                        {marker.label}
+                        {isPending && <Clock3 className="size-2.5 shrink-0" />}
+                      </span>
+                    )}
 
                     {editMode && (
                       <>
@@ -285,9 +331,11 @@ export function Timeline({
                   key={`boundary-${band.marker.id}`}
                   onPointerDown={handleBoundaryPointerDown(index)}
                   title="Arrastrar para mover el límite entre secciones"
-                  className="absolute top-0 bottom-0 z-30 w-2 -translate-x-1/2 cursor-col-resize hover:bg-white/30"
+                  className="group absolute top-0 bottom-0 z-30 flex w-5 -translate-x-1/2 cursor-col-resize items-center justify-center"
                   style={{ left: `${leftPct}%` }}
-                />
+                >
+                  <div className="h-full w-1 rounded-full bg-white/25 group-hover:bg-white/70" />
+                </div>
               );
             })}
 

@@ -73,7 +73,7 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
   }, [song.id, setActiveSong]);
 
   useEffect(() => {
-    player.setBaseBpm(song.bpm ?? 120);
+    player.setMetronomeBpm(song.bpm ?? 120);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [song.bpm]);
 
@@ -221,17 +221,17 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
           <div className="flex w-full flex-wrap gap-2">
             <MetronomeStrip
               color="#64748b"
-              volume={player.metronomeVolume}
+              displayVolume={player.metronomeVolumeDisplay}
               level={player.metronomeLevel}
               db={player.metronomeDb}
               clipping={player.metronomeClipping}
               isOn={player.metronomeOn}
               isPlaying={player.isPlaying}
-              tempo={player.tempo}
+              bpm={player.metronomeBpm}
               sound={player.metronomeSound}
               onToggleOn={() => player.setMetronomeOn(!player.metronomeOn)}
               onVolumeChange={player.setMetronomeVolume}
-              onTempoChange={player.setTempo}
+              onBpmChange={player.setMetronomeBpm}
               onSoundChange={player.setMetronomeSound}
             />
 
@@ -244,6 +244,7 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
                   key={track.id}
                   track={track}
                   color={track.color !== "#ff8a1f" ? track.color : CHANNEL_COLORS[i % CHANNEL_COLORS.length]}
+                  displayVolume={player.trackVolumeDisplay.get(track.id) ?? track.volume}
                   level={level}
                   db={player.trackDb.get(track.id) ?? -Infinity}
                   clipping={player.trackClipping.get(track.id) ?? false}

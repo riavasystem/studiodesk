@@ -16,11 +16,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const sequenceRef = useRef<ISequenceSpan[]>([]);
   sequenceRef.current = sequence;
   const lastCheckedTimeRef = useRef(0);
-  // The span the transport is currently "inside" for sequence purposes. Kept
-  // as a ref (not re-derived from `time` every frame) because once time
-  // reaches a span's end it no longer satisfies `time < span.end`, so
-  // re-deriving "active" from time alone can never detect having crossed it.
-  const activeSpanIndexRef = useRef<number | null>(null);
+  // The sequence item the transport is currently "inside", tracked by its
+  // stable itemId (not array index) so edits elsewhere in the sequence —
+  // deleting or inserting a section before this one — can't leave this
+  // pointing at the wrong slot after the array shifts.
+  const activeItemIdRef = useRef<number | null>(null);
 
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +36,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [metronomeOn, setMetronomeOnState] = useState(false);
   const [trackUrls, setTrackUrls] = useState<Map<number, string>>(new Map());
   const [trackLevels, setTrackLevels] = useState<Map<number, number>>(new Map());
+  const [trackVolumeDisplay, setTrackVolumeDisplay] = useState<Map<number, number>>(new Map());
   const [trackDb, setTrackDb] = useState<Map<number, number>>(new Map());
   const [trackClipping, setTrackClipping] = useState<Map<number, boolean>>(new Map());
   const [masterVolume, setMasterVolumeState] = useState(1);
@@ -46,6 +47,8 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const masterVolumeRef = useRef(1);
   const preFadeVolumeRef = useRef(1);
   const [metronomeVolume, setMetronomeVolumeState] = useState(1);
+  const [metronomeVolumeDisplay, setMetronomeVolumeDisplay] = useState(1);
+  const [metronomeBpm, setMetronomeBpmState] = useState(120);
   const [metronomeSound, setMetronomeSoundState] = useState<MetronomeSoundId>("clock");
   const [metronomeLevel, setMetronomeLevel] = useState(0);
   const [metronomeDb, setMetronomeDb] = useState(-Infinity);
@@ -136,32 +139,58 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         lastCheckedTimeRef.current = time;
 
         if (seq.length === 0) {
-          activeSpanIndexRef.current = null;
+          activeItemIdRef.current = null;
         } else {
           // A jump bigger than a normal frame step (rewind, loop wrap, an
           // external seek) means `time` may no longer belong to the span we
           // were tracking — resync by locating it fresh. Natural forward
           // playback never needs this: it advances by a tiny amount per tick.
           const isExternalJump = Math.abs(time - prevTime) > 0.5;
-          if (activeSpanIndexRef.current === null || isExternalJump) {
-            const idx = seq.findIndex((s) => time >= s.start && time < s.end);
-            activeSpanIndexRef.current = idx !== -1 ? idx : null;
-            setCurrentSequenceIndex(idx !== -1 ? idx : null);
+
+          // Re-resolve by itemId (not a raw index) so edits elsewhere in the
+          // sequence — e.g. deleting an earlier section — can't leave this
+          // pointing at a stale array position after the array shifts.
+          let idx = activeItemIdRef.current !== null ? seq.findIndex((s) => s.itemId === activeItemIdRef.current) : -1;
+          if (idx === -1 || isExternalJump) {
+            idx = seq.findIndex((s) => time >= s.start && time < s.end);
           }
 
-          const idx = activeSpanIndexRef.current;
-          if (idx !== null && engine.isPlaying && time >= seq[idx].end) {
-            const pending = pendingSequenceIndexRef.current;
-            const nextIndex = pending !== null ? pending : idx + 1;
-            if (nextIndex < seq.length) {
-              const nextSpan = seq[nextIndex];
-              engine.seekTo(nextSpan.start);
-              lastCheckedTimeRef.current = nextSpan.start;
-              activeSpanIndexRef.current = nextIndex;
-              setCurrentSequenceIndex(nextIndex);
-              setPendingSequenceIndex(null);
-            } else {
-              engine.pause();
+          if (idx === -1) {
+            // `time` isn't covered by any sequence span — most likely the
+            // section that used to occupy this stretch was just deleted.
+            // Skip forward to whatever comes next instead of continuing to
+            // play that now-untracked raw audio.
+            activeItemIdRef.current = null;
+            setCurrentSequenceIndex(null);
+            if (engine.isPlaying) {
+              const nextIdx = seq.findIndex((s) => s.start > time);
+              if (nextIdx !== -1) {
+                const nextSpan = seq[nextIdx];
+                engine.seekTo(nextSpan.start);
+                lastCheckedTimeRef.current = nextSpan.start;
+                activeItemIdRef.current = nextSpan.itemId;
+                setCurrentSequenceIndex(nextIdx);
+              } else {
+                engine.pause();
+              }
+            }
+          } else {
+            activeItemIdRef.current = seq[idx].itemId;
+            setCurrentSequenceIndex(idx);
+
+            if (engine.isPlaying && time >= seq[idx].end) {
+              const pending = pendingSequenceIndexRef.current;
+              const nextIndex = pending !== null ? pending : idx + 1;
+              if (nextIndex < seq.length) {
+                const nextSpan = seq[nextIndex];
+                engine.seekTo(nextSpan.start);
+                lastCheckedTimeRef.current = nextSpan.start;
+                activeItemIdRef.current = nextSpan.itemId;
+                setCurrentSequenceIndex(nextIndex);
+                setPendingSequenceIndex(null);
+              } else {
+                engine.pause();
+              }
             }
           }
         }
@@ -172,12 +201,14 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         frameCount++;
         if (frameCount % 4 === 0) {
           setTrackLevels(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackLevel(id)])));
+          setTrackVolumeDisplay(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackVolume(id)])));
           setTrackDb(new Map(trackIdListRef.current.map((id) => [id, engine.getTrackDb(id)])));
           setTrackClipping(new Map(trackIdListRef.current.map((id) => [id, engine.isTrackClipping(id)])));
           setMasterLevel(engine.getMasterLevel());
           setMasterDb(engine.getMasterDb());
           setMasterClipping(engine.isMasterClipping());
           setMetronomeLevel(engine.getMetronomeLevel());
+          setMetronomeVolumeDisplay(engine.getMetronomeVolume());
           setMetronomeDb(engine.getMetronomeDb());
           setMetronomeClipping(engine.isMetronomeClipping());
         }
@@ -261,7 +292,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     } else {
       engine.seekTo(span.start);
       lastCheckedTimeRef.current = span.start;
-      activeSpanIndexRef.current = index;
+      activeItemIdRef.current = span.itemId;
       setCurrentSequenceIndex(index);
     }
   }, []);
@@ -273,8 +304,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.setMetronome(value);
   }, []);
 
-  const setBaseBpm = useCallback((bpm: number) => {
-    engineRef.current?.setBaseBpm(bpm);
+  const setMetronomeBpm = useCallback((bpm: number) => {
+    setMetronomeBpmState(bpm);
+    engineRef.current?.setMetronomeBpm(bpm);
   }, []);
 
   const setMetronomeVolume = useCallback((value: number) => {
@@ -321,6 +353,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setMetronomeOn,
     trackUrls,
     trackLevels,
+    trackVolumeDisplay,
     trackDb,
     trackClipping,
     masterVolume,
@@ -330,8 +363,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setMasterVolume,
     isFaded,
     toggleGlobalFade,
-    setBaseBpm,
+    metronomeBpm,
+    setMetronomeBpm,
     metronomeVolume,
+    metronomeVolumeDisplay,
     setMetronomeVolume,
     metronomeSound,
     setMetronomeSound,
