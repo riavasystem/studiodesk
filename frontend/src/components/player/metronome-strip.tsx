@@ -5,7 +5,12 @@ import { Radio, Settings } from "lucide-react";
 import { Fader } from "@/components/player/fader";
 import { FaderScale } from "@/components/player/fader-scale";
 import { VerticalMeter } from "@/components/player/vertical-meter";
-import { METRONOME_SOUND_OPTIONS, type MetronomeSoundId } from "@/lib/multitrack-engine";
+import {
+  METRONOME_SOUND_OPTIONS,
+  METRONOME_SUBDIVISION_OPTIONS,
+  type MetronomeSoundId,
+  type MetronomeSubdivision,
+} from "@/lib/multitrack-engine";
 
 function dbLabel(db: number): string {
   if (!Number.isFinite(db) || db < -90) return "-∞";
@@ -22,10 +27,12 @@ interface IMetronomeStripProps {
   isPlaying: boolean;
   bpm: number;
   sound: MetronomeSoundId;
+  subdivision: MetronomeSubdivision;
   onToggleOn: () => void;
   onVolumeChange: (value: number) => void;
   onBpmChange: (value: number) => void;
   onSoundChange: (id: MetronomeSoundId) => void;
+  onSubdivisionChange: (id: MetronomeSubdivision) => void;
 }
 
 export function MetronomeStrip({
@@ -38,10 +45,12 @@ export function MetronomeStrip({
   isPlaying,
   bpm,
   sound,
+  subdivision,
   onToggleOn,
   onVolumeChange,
   onBpmChange,
   onSoundChange,
+  onSubdivisionChange,
 }: IMetronomeStripProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -128,6 +137,25 @@ export function MetronomeStrip({
               >
                 +
               </button>
+            </div>
+          </div>
+
+          <div className="flex w-full flex-col gap-1 rounded-md border border-white/6 bg-black/20 p-1.5">
+            <span className="text-center font-mono text-[8px] tracking-widest text-white/30 uppercase">Subdivisión</span>
+            <div className="flex w-full gap-1">
+              {METRONOME_SUBDIVISION_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => onSubdivisionChange(option.id)}
+                  className={`flex-1 rounded border py-0.5 font-mono text-[9px] font-semibold transition-all ${
+                    subdivision === option.id
+                      ? "border-emerald-400 bg-emerald-400/20 text-emerald-300"
+                      : "border-white/10 text-white/40 hover:text-white/70"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
 

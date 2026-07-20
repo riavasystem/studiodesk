@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildAuthenticatedStorageUrl } from "@/lib/api-client";
-import { MultitrackEngine, type MetronomeSoundId } from "@/lib/multitrack-engine";
+import { MultitrackEngine, type MetronomeSoundId, type MetronomeSubdivision } from "@/lib/multitrack-engine";
 import type { ITrack } from "@/hooks/use-tracks";
 
 export interface ISequenceSpan {
@@ -33,7 +33,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [loop, setLoopState] = useState(false);
   const [tempo, setTempoState] = useState(1);
   const [pitch, setPitchState] = useState(0);
-  const [metronomeOn, setMetronomeOnState] = useState(false);
+  // Starts active: the click should be audible the moment a song is ready
+  // to play, not require an extra manual step every time.
+  const [metronomeOn, setMetronomeOnState] = useState(true);
+  const metronomeOnRef = useRef(true);
+  const padOnRef = useRef(false);
   const [trackUrls, setTrackUrls] = useState<Map<number, string>>(new Map());
   const [trackLevels, setTrackLevels] = useState<Map<number, number>>(new Map());
   const [trackVolumeDisplay, setTrackVolumeDisplay] = useState<Map<number, number>>(new Map());
@@ -50,6 +54,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [metronomeVolumeDisplay, setMetronomeVolumeDisplay] = useState(1);
   const [metronomeBpm, setMetronomeBpmState] = useState(120);
   const [metronomeSound, setMetronomeSoundState] = useState<MetronomeSoundId>("clock");
+  const [metronomeSubdivision, setMetronomeSubdivisionState] = useState<MetronomeSubdivision>("1/4");
   const [metronomeLevel, setMetronomeLevel] = useState(0);
   const [metronomeDb, setMetronomeDb] = useState(-Infinity);
   const [metronomeClipping, setMetronomeClipping] = useState(false);
@@ -108,6 +113,12 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         engine.setTempo(tempo);
         engine.setPitch(pitch);
         setDuration(engine.duration);
+        // dispose() (called at the start of loadTracks) cancels every
+        // Transport-scheduled event, which silently kills the click/pad loop
+        // — restart them here so a song swap doesn't drop the click that's
+        // supposed to always be running by default.
+        engine.setMetronome(metronomeOnRef.current);
+        engine.setPadOn(padOnRef.current);
         setIsReady(true);
         setIsLoading(false);
       } catch (err) {
@@ -310,6 +321,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const cancelPendingSequenceIndex = useCallback(() => setPendingSequenceIndex(null), []);
 
   const setMetronomeOn = useCallback((value: boolean) => {
+    metronomeOnRef.current = value;
     setMetronomeOnState(value);
     engineRef.current?.setMetronome(value);
   }, []);
@@ -329,7 +341,13 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.setMetronomeSound(id);
   }, []);
 
+  const setMetronomeSubdivision = useCallback((subdivision: MetronomeSubdivision) => {
+    setMetronomeSubdivisionState(subdivision);
+    engineRef.current?.setMetronomeSubdivision(subdivision);
+  }, []);
+
   const setPadOn = useCallback((value: boolean) => {
+    padOnRef.current = value;
     setPadOnState(value);
     engineRef.current?.setPadOn(value);
   }, []);
@@ -390,6 +408,8 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setMetronomeVolume,
     metronomeSound,
     setMetronomeSound,
+    metronomeSubdivision,
+    setMetronomeSubdivision,
     metronomeLevel,
     metronomeDb,
     metronomeClipping,

@@ -9,6 +9,23 @@ export const METRONOME_SOUND_OPTIONS: { id: MetronomeSoundId; label: string }[] 
   { id: "hihat", label: "Hi-Hat" },
 ];
 
+// How many clicks per beat: quarter notes (1 per beat), eighths (2 per
+// beat) or sixteenths (4 per beat) — the BPM itself never changes, only how
+// finely each beat gets subdivided.
+export type MetronomeSubdivision = "1/4" | "1/8" | "1/16";
+
+export const METRONOME_SUBDIVISION_OPTIONS: { id: MetronomeSubdivision; label: string; ticksPerBeat: number }[] = [
+  { id: "1/4", label: "1/4", ticksPerBeat: 1 },
+  { id: "1/8", label: "1/8", ticksPerBeat: 2 },
+  { id: "1/16", label: "1/16", ticksPerBeat: 4 },
+];
+
+const TICKS_PER_BEAT: Record<MetronomeSubdivision, number> = {
+  "1/4": 1,
+  "1/8": 2,
+  "1/16": 4,
+};
+
 interface ITrackNode {
   player: Tone.Player;
   gain: Tone.Gain;
@@ -49,6 +66,7 @@ export class MultitrackEngine {
   // The click's own speed, entirely independent of `playbackRate` (the song's
   // overall playback speed) — changing one must never move the other.
   private metronomeBpm = 120;
+  private metronomeSubdivision: MetronomeSubdivision = "1/4";
 
   private masterGain = new Tone.Gain(1);
   private limiter = new Tone.Limiter(-1);
@@ -87,17 +105,23 @@ export class MultitrackEngine {
   private metronomeVolumeValue = 1;
 
   // Ambient synth pad — a sustained chord re-triggered every few seconds
-  // while enabled, giving a harmonic bed under the song.
+  // while enabled, giving a harmonic bed under the song. Deliberately soft:
+  // low fixed note velocity, a gentle lowpass to shave off harsh overtones,
+  // and a low default gain, so it reads as a faint cushion (like a very
+  // softly played keyboard key) rather than something that competes with
+  // or "interferes" with the actual tracks.
   private padSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: "sine" },
-    envelope: { attack: 1.2, decay: 0.3, sustain: 0.8, release: 1.5 },
+    envelope: { attack: 1.8, decay: 0.4, sustain: 0.45, release: 2.2 },
   });
-  private padGain = new Tone.Gain(0.6);
+  private padFilter = new Tone.Filter({ type: "lowpass", frequency: 1200, Q: 0.3 });
+  private padGain = new Tone.Gain(0.28);
   private padMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
   private padMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
   private padLoopId: number | null = null;
-  private padVolumeValue = 0.6;
+  private padVolumeValue = 0.28;
   private static readonly PAD_CHORD = ["C3", "E3", "G3", "B3"];
+  private static readonly PAD_VELOCITY = 0.35;
   private static readonly PAD_LOOP_SECONDS = 5;
 
   constructor() {
@@ -113,7 +137,8 @@ export class MultitrackEngine {
     this.metronomeGain.connect(this.masterGain);
     this.metronomeGain.connect(this.metronomeMeter);
     this.metronomeGain.connect(this.metronomeMeterDb);
-    this.padSynth.connect(this.padGain);
+    this.padSynth.connect(this.padFilter);
+    this.padFilter.connect(this.padGain);
     this.padGain.connect(this.masterGain);
     this.padGain.connect(this.padMeter);
     this.padGain.connect(this.padMeterDb);
@@ -148,10 +173,10 @@ export class MultitrackEngine {
 
   setPadOn(enabled: boolean) {
     if (enabled && this.padLoopId === null) {
-      this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD);
+      this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD, undefined, MultitrackEngine.PAD_VELOCITY);
       this.padLoopId = Tone.getTransport().scheduleRepeat(() => {
         this.padSynth.triggerRelease(MultitrackEngine.PAD_CHORD);
-        this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD);
+        this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD, undefined, MultitrackEngine.PAD_VELOCITY);
       }, MultitrackEngine.PAD_LOOP_SECONDS);
     } else if (!enabled && this.padLoopId !== null) {
       Tone.getTransport().clear(this.padLoopId);
@@ -183,6 +208,10 @@ export class MultitrackEngine {
     return this.getPadDb() >= CLIP_THRESHOLD_DB;
   }
 
+  private metronomeIntervalSeconds(): number {
+    return 60 / this.metronomeBpm / TICKS_PER_BEAT[this.metronomeSubdivision];
+  }
+
   setMetronome(enabled: boolean) {
     if (enabled && this.metronomeEventId === null) {
       // A plain-seconds interval (not a "4n" subdivision) keeps the click's
@@ -190,23 +219,32 @@ export class MultitrackEngine {
       // own playback-rate ("Tempo") changes.
       this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
         this.triggerMetronomeClick(time);
-      }, 60 / this.metronomeBpm);
+      }, this.metronomeIntervalSeconds());
     } else if (!enabled && this.metronomeEventId !== null) {
       Tone.getTransport().clear(this.metronomeEventId);
       this.metronomeEventId = null;
     }
   }
 
-  setMetronomeBpm(bpm: number) {
-    this.metronomeBpm = bpm > 0 ? bpm : 120;
+  private rescheduleMetronomeIfActive() {
     if (this.metronomeEventId !== null) {
       // scheduleRepeat's interval is fixed at call time — re-schedule so a
       // live change takes effect immediately instead of on the next toggle.
       Tone.getTransport().clear(this.metronomeEventId);
       this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
         this.triggerMetronomeClick(time);
-      }, 60 / this.metronomeBpm);
+      }, this.metronomeIntervalSeconds());
     }
+  }
+
+  setMetronomeBpm(bpm: number) {
+    this.metronomeBpm = bpm > 0 ? bpm : 120;
+    this.rescheduleMetronomeIfActive();
+  }
+
+  setMetronomeSubdivision(subdivision: MetronomeSubdivision) {
+    this.metronomeSubdivision = subdivision;
+    this.rescheduleMetronomeIfActive();
   }
 
   get duration(): number {
@@ -475,6 +513,12 @@ export class MultitrackEngine {
   dispose() {
     Tone.getTransport().stop();
     Tone.getTransport().cancel();
+    // Transport.cancel() wipes every scheduled event, including the click's
+    // and pad's own scheduleRepeat — without nulling these too, setMetronome/
+    // setPadOn would believe a (now-cancelled) schedule is still active and
+    // silently refuse to reschedule it after loading the next song.
+    this.metronomeEventId = null;
+    this.padLoopId = null;
     for (const node of this.nodes.values()) {
       node.player.unsync();
       node.player.dispose();

@@ -224,7 +224,10 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         duration={player.duration}
         onSeek={player.seekTo}
         onSeekToSequenceIndex={player.seekToSequenceIndex}
-        onEnableMetronome={() => player.setMetronomeOn(true)}
+        metronomeOn={player.metronomeOn}
+        onToggleMetronome={() => player.setMetronomeOn(!player.metronomeOn)}
+        padOn={player.padOn}
+        onTogglePad={() => player.setPadOn(!player.padOn)}
         editMode={editMode}
       />
 
@@ -249,10 +252,12 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
               isPlaying={player.isPlaying}
               bpm={player.metronomeBpm}
               sound={player.metronomeSound}
+              subdivision={player.metronomeSubdivision}
               onToggleOn={() => player.setMetronomeOn(!player.metronomeOn)}
               onVolumeChange={player.setMetronomeVolume}
               onBpmChange={player.setMetronomeBpm}
               onSoundChange={player.setMetronomeSound}
+              onSubdivisionChange={player.setMetronomeSubdivision}
             />
 
             <PadStrip

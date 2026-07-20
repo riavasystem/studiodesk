@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Clock3, Loader2, Minus, Plus, Radio, Wand2, ZoomIn } from "lucide-react";
+import { Clock3, Infinity as InfinityIcon, Loader2, Minus, Plus, Radio, Waves, Wand2, ZoomIn } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrackWaveform } from "@/components/player/track-waveform";
@@ -38,7 +38,10 @@ interface ITimelineProps {
   duration: number;
   onSeek: (seconds: number) => void;
   onSeekToSequenceIndex: (index: number) => void;
-  onEnableMetronome: () => void;
+  metronomeOn: boolean;
+  onToggleMetronome: () => void;
+  padOn: boolean;
+  onTogglePad: () => void;
   editMode: boolean;
 }
 
@@ -53,7 +56,10 @@ export function Timeline({
   duration,
   onSeek,
   onSeekToSequenceIndex,
-  onEnableMetronome,
+  metronomeOn,
+  onToggleMetronome,
+  padOn,
+  onTogglePad,
   editMode,
 }: ITimelineProps) {
   const deleteMarker = useDeleteMarker(songId);
@@ -438,26 +444,71 @@ export function Timeline({
             </div>
           )}
 
+          {/* Independent from the colored sections: a reserved gray-transparent
+              "insertion gutter" at each edge (the only bands with this color),
+              so it reads as its own kind of slot rather than a tiny floating
+              button. Also carries the always-on Click/Pad infinity toggles,
+              since those loop for the whole song regardless of section. */}
           {editMode && bands.length > 0 && (
-            <button
-              type="button"
-              title="Agregar una sección antes de la Intro"
-              onClick={() => setAddDialogTarget({ kind: "start" })}
-              className="absolute top-1 left-1 z-40 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow"
-            >
-              <Plus className="size-3" />
-            </button>
+            <div className="absolute top-0 left-0 z-30 flex h-full w-9 shrink-0 flex-col items-center justify-between border-r border-dashed border-white/25 bg-white/10 py-1">
+              <button
+                type="button"
+                title="Agregar una sección antes de la Intro"
+                onClick={() => setAddDialogTarget({ kind: "start" })}
+                className="flex size-5 items-center justify-center rounded-full bg-white/20 text-white/80 hover:bg-white/30"
+              >
+                <Plus className="size-3" />
+              </button>
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onToggleMetronome}
+                  title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
+                  className={`flex size-5 items-center justify-center rounded-full ${metronomeOn ? "bg-emerald-400/30 text-emerald-300" : "text-white/30 hover:text-white/60"}`}
+                >
+                  <InfinityIcon className="size-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onTogglePad}
+                  title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
+                  className={`flex size-5 items-center justify-center rounded-full ${padOn ? "bg-sky-400/30 text-sky-300" : "text-white/30 hover:text-white/60"}`}
+                >
+                  <Waves className="size-3" />
+                </button>
+              </div>
+            </div>
           )}
 
           {editMode && bands.length > 0 && (
-            <button
-              type="button"
-              title="Agregar una sección después del Final"
-              onClick={() => setAddDialogTarget({ kind: "end" })}
-              className="absolute top-1 right-1 z-40 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow"
-            >
-              <Plus className="size-3" />
-            </button>
+            <div className="absolute top-0 right-0 z-30 flex h-full w-9 shrink-0 flex-col items-center justify-between border-l border-dashed border-white/25 bg-white/10 py-1">
+              <button
+                type="button"
+                title="Agregar una sección después del Final"
+                onClick={() => setAddDialogTarget({ kind: "end" })}
+                className="flex size-5 items-center justify-center rounded-full bg-white/20 text-white/80 hover:bg-white/30"
+              >
+                <Plus className="size-3" />
+              </button>
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onToggleMetronome}
+                  title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
+                  className={`flex size-5 items-center justify-center rounded-full ${metronomeOn ? "bg-emerald-400/30 text-emerald-300" : "text-white/30 hover:text-white/60"}`}
+                >
+                  <InfinityIcon className="size-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onTogglePad}
+                  title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
+                  className={`flex size-5 items-center justify-center rounded-full ${padOn ? "bg-sky-400/30 text-sky-300" : "text-white/30 hover:text-white/60"}`}
+                >
+                  <Waves className="size-3" />
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Draggable handles for section boundaries, so they can be resized
@@ -536,13 +587,24 @@ export function Timeline({
           <div className="mt-4 flex max-h-96 flex-col gap-1.5 overflow-y-auto">
             <button
               onClick={() => {
-                onEnableMetronome();
+                if (!metronomeOn) onToggleMetronome();
                 setAddDialogTarget(null);
               }}
               className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
             >
               <Radio className="size-3.5 shrink-0 text-white/50" />
-              <span className="truncate text-sm font-medium text-white">Click (metrónomo)</span>
+              <span className="truncate text-sm font-medium text-white">Click (metrónomo) — se activa para toda la canción</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (!padOn) onTogglePad();
+                setAddDialogTarget(null);
+              }}
+              className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
+            >
+              <Waves className="size-3.5 shrink-0 text-white/50" />
+              <span className="truncate text-sm font-medium text-white">Pad (ambiente) — se activa para toda la canción</span>
             </button>
 
             {(markers ?? []).length === 0 && (
