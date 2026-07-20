@@ -186,7 +186,9 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         title={song.title}
         artist={song.artist}
         bpm={song.bpm}
+        onBpmChange={(value) => buildSongPayload({ bpm: value })}
         timeSignature={song.time_signature}
+        onTimeSignatureChange={(value) => buildSongPayload({ time_signature: value })}
         currentTime={player.currentTime}
         duration={player.duration}
         isPlaying={player.isPlaying}
@@ -331,8 +333,6 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         onTempoChange={player.setTempo}
         transpose={player.pitch}
         onTransposeChange={player.setPitch}
-        timeSignature={song.time_signature}
-        onTimeSignatureChange={(value) => buildSongPayload({ time_signature: value })}
         masterVolume={player.masterVolume}
         onMasterVolumeChange={player.setMasterVolume}
       />

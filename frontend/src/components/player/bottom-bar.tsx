@@ -35,60 +35,6 @@ function FooterToggle({
   );
 }
 
-function EditableField({
-  label,
-  value,
-  onCommit,
-  width = "w-14",
-}: {
-  label: string;
-  value: string;
-  onCommit: (value: string) => void;
-  width?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-
-  const commit = () => {
-    setEditing(false);
-    const trimmed = draft.trim();
-    if (trimmed && trimmed !== value) onCommit(trimmed);
-    else setDraft(value);
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      {editing ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            if (e.key === "Escape") {
-              setDraft(value);
-              setEditing(false);
-            }
-          }}
-          className={`${width} rounded border border-orange-400/40 bg-black/40 px-1 text-center font-mono text-[12px] font-bold text-white outline-none`}
-        />
-      ) : (
-        <button
-          onClick={() => {
-            setDraft(value);
-            setEditing(true);
-          }}
-          className={`${width} rounded font-mono text-[12px] font-bold text-white/85 hover:text-orange-300`}
-        >
-          {value || "--"}
-        </button>
-      )}
-      <span className="font-mono text-[8px] tracking-widest text-white/35 uppercase">{label}</span>
-    </div>
-  );
-}
-
 function Stepper({
   label,
   display,
@@ -163,8 +109,6 @@ interface IBottomBarProps {
   onTempoChange: (value: number) => void;
   transpose: number;
   onTransposeChange: (value: number) => void;
-  timeSignature: string;
-  onTimeSignatureChange: (value: string) => void;
   masterVolume: number;
   onMasterVolumeChange: (value: number) => void;
 }
@@ -177,8 +121,6 @@ export function BottomBar({
   onTempoChange,
   transpose,
   onTransposeChange,
-  timeSignature,
-  onTimeSignatureChange,
   masterVolume,
   onMasterVolumeChange,
 }: IBottomBarProps) {
@@ -210,8 +152,6 @@ export function BottomBar({
         onIncrement={() => onTransposeChange(Math.min(12, transpose + 1))}
         onDecrement={() => onTransposeChange(Math.max(-12, transpose - 1))}
       />
-
-      <EditableField label="Compás" value={timeSignature} onCommit={onTimeSignatureChange} width="w-12" />
 
       <div className="h-8 w-px bg-white/8" />
 
