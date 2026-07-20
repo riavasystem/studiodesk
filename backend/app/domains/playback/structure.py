@@ -81,15 +81,19 @@ def _pick_boundaries(novelty: np.ndarray) -> list[float]:
     return [round(i * HOP_SECONDS, 2) for i in chosen]
 
 
-def detect_section_boundaries(audio_path: str) -> list[float]:
-    """Returns section start times in seconds (always includes 0.0 first),
-    estimated from timbral/energy novelty of the reference track. Heuristic,
-    not exact: meant as a starting point for the user to rename/adjust."""
+def detect_section_boundaries(audio_path: str) -> tuple[list[float], float]:
+    """Returns (section start times in seconds — always includes 0.0 first,
+    real decoded duration of `audio_path`), estimated from timbral/energy
+    novelty of the reference track. Heuristic, not exact: meant as a starting
+    point for the user to rename/adjust. The duration comes from the same
+    decode pass, so the last section can be bounded to exactly where this
+    audio file ends instead of trusting a possibly stale stored duration."""
     samples = _decode_to_mono_pcm(audio_path)
+    duration = len(samples) / SAMPLE_RATE
     if samples.size < SAMPLE_RATE * (FRAME_SECONDS + HOP_SECONDS):
-        return [0.0]
+        return [0.0], duration
 
     features = _frame_features(samples)
     novelty = _novelty_curve(features)
     boundaries = _pick_boundaries(novelty)
-    return [0.0] + [b for b in boundaries if b > MIN_SECTION_SECONDS / 2]
+    return [0.0] + [b for b in boundaries if b > MIN_SECTION_SECONDS / 2], duration

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Timer } from "lucide-react";
-import { KEY_NAMES } from "@/lib/music-keys";
 
 const UNAVAILABLE_MESSAGE = "No disponible en esta versión";
 
@@ -162,9 +161,6 @@ interface IBottomBarProps {
   bpm: number | null;
   tempo: number;
   onTempoChange: (value: number) => void;
-  originalKey: string;
-  playbackKey: string;
-  onPlaybackKeyChange: (value: string) => void;
   transpose: number;
   onTransposeChange: (value: number) => void;
   timeSignature: string;
@@ -179,9 +175,6 @@ export function BottomBar({
   bpm,
   tempo,
   onTempoChange,
-  originalKey,
-  playbackKey,
-  onPlaybackKeyChange,
   transpose,
   onTransposeChange,
   timeSignature,
@@ -210,22 +203,6 @@ export function BottomBar({
         onIncrement={() => onTempoChange(Math.min(1.5, +(tempo + 0.01).toFixed(2)))}
         onDecrement={() => onTempoChange(Math.max(0.5, +(tempo - 0.01).toFixed(2)))}
       />
-
-      <div className="flex flex-col items-center gap-0.5">
-        <select
-          value={playbackKey}
-          onChange={(e) => onPlaybackKeyChange(e.target.value)}
-          title={`Tonalidad original: ${originalKey}. Cambiarla transpone la reproducción en tiempo real, sin alterar el tempo.`}
-          className="w-16 rounded border-none bg-transparent text-center font-mono text-[12px] font-bold text-white/85 outline-none hover:text-orange-300"
-        >
-          {KEY_NAMES.map((key) => (
-            <option key={key} value={key} className="bg-black">
-              {key}
-            </option>
-          ))}
-        </select>
-        <span className="font-mono text-[8px] tracking-widest text-white/35 uppercase">Tonalidad</span>
-      </div>
 
       <Stepper
         label="Transpose"

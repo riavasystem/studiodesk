@@ -204,6 +204,11 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         onStop={player.stop}
         onRewind={() => player.seekTo(0)}
         onToggleLoop={() => player.setLoop(!player.loop)}
+        padOn={player.padOn}
+        onTogglePad={() => player.setPadOn(!player.padOn)}
+        originalKey={originalKey}
+        playbackKey={playbackKey}
+        onPlaybackKeyChange={handlePlaybackKeyChange}
       />
 
       <SongCarousel activeSongId={song.id} allSongs={songs} />
@@ -319,9 +324,6 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         bpm={song.bpm}
         tempo={player.tempo}
         onTempoChange={player.setTempo}
-        originalKey={originalKey}
-        playbackKey={playbackKey}
-        onPlaybackKeyChange={handlePlaybackKeyChange}
         transpose={player.pitch}
         onTransposeChange={player.setPitch}
         timeSignature={song.time_signature}

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { AlertTriangle, ListMusic, Loader2, Menu, Pause, Pencil, Play, Repeat, Square, SkipBack } from "lucide-react";
 import { toast } from "sonner";
+import { KEY_NAMES } from "@/lib/music-keys";
 
 export type PlayerPanel = "mixer" | "sequence";
 
@@ -64,6 +64,11 @@ interface ITransportBarProps {
   onStop: () => void;
   onRewind: () => void;
   onToggleLoop: () => void;
+  padOn: boolean;
+  onTogglePad: () => void;
+  originalKey: string;
+  playbackKey: string;
+  onPlaybackKeyChange: (value: string) => void;
 }
 
 export function TransportBar({
@@ -88,9 +93,12 @@ export function TransportBar({
   onStop,
   onRewind,
   onToggleLoop,
+  padOn,
+  onTogglePad,
+  originalKey,
+  playbackKey,
+  onPlaybackKeyChange,
 }: ITransportBarProps) {
-  const [padOn, setPadOn] = useState(false);
-
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent px-5 py-4 shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_60px_-20px_rgba(0,0,0,0.8)]">
       <div className="flex flex-wrap items-center gap-3">
@@ -106,7 +114,23 @@ export function TransportBar({
           </span>
         </div>
 
-        <TransportButton onClick={() => setPadOn((v) => !v)} title="Pad" active={padOn}>
+        <div className="flex flex-col items-center justify-center gap-0.5 rounded-xl border border-white/8 bg-black/30 px-2 py-1.5">
+          <select
+            value={playbackKey}
+            onChange={(e) => onPlaybackKeyChange(e.target.value)}
+            title={`Tonalidad original: ${originalKey}. Cambiarla transpone la reproducción en tiempo real, sin alterar el tempo.`}
+            className="w-14 rounded border-none bg-transparent text-center font-mono text-sm font-bold text-white/85 outline-none hover:text-orange-300"
+          >
+            {KEY_NAMES.map((key) => (
+              <option key={key} value={key} className="bg-black">
+                {key}
+              </option>
+            ))}
+          </select>
+          <span className="font-mono text-[8px] tracking-widest text-white/35 uppercase">Tonalidad</span>
+        </div>
+
+        <TransportButton onClick={onTogglePad} title="Activar/desactivar el Pad ambiente" active={padOn}>
           <span className="font-mono text-xs font-bold tracking-wide">PAD</span>
         </TransportButton>
 

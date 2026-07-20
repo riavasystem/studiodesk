@@ -116,10 +116,16 @@ def auto_detect_markers(db: Session, song_id: int, tracks: list[Track]) -> list[
     if audio_file is None:
         raise ValueError("No se encontró el archivo de audio de referencia")
 
-    boundaries = detect_section_boundaries(audio_file.storage_path)
+    boundaries, real_duration = detect_section_boundaries(audio_file.storage_path)
 
     song = get_song(db, song_id)
-    fallback_end = song.duration_seconds if song is not None else None
+    # Bound the last section to where this audio file actually ends, not to
+    # `song.duration_seconds` — that stored value can drift stale (e.g. set
+    # from a different track at upload time) and let the Final section run
+    # past the real end of the reference track's audio.
+    fallback_end = real_duration
+    if song is not None and (song.duration_seconds is None or abs(song.duration_seconds - real_duration) > 0.5):
+        song.duration_seconds = real_duration
 
     # Clear previously auto-generated sections so re-running doesn't duplicate
     # them; markers the user renamed to something else are left untouched.
