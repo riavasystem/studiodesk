@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, ListMusic, Loader2, Menu, MicVocal, Pause, Play, Repeat, Square, SkipBack } from "lucide-react";
 import { toast } from "sonner";
 
-export type PlayerPanel = "mixer" | "lyrics";
+export type PlayerPanel = "mixer" | "lyrics" | "sequence";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -157,7 +157,11 @@ export function TransportBar({
         >
           <MicVocal className="size-5" />
         </TransportButton>
-        <TransportButton onClick={() => toast("No disponible en esta versión")} title="Repertorio">
+        <TransportButton
+          onClick={() => onPanelChange("sequence")}
+          title="Secuencia de reproducción"
+          active={panel === "sequence"}
+        >
           <ListMusic className="size-5" />
         </TransportButton>
         <TransportButton onClick={() => toast("No disponible en esta versión")} title="Menú">

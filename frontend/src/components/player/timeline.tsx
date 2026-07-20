@@ -2,30 +2,12 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Wand2, X, ZoomIn } from "lucide-react";
+import { Clock3, Loader2, Wand2, X, ZoomIn } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TrackWaveform } from "@/components/player/track-waveform";
-import {
-  useAutoDetectMarkers,
-  useCreateMarker,
-  useDeleteMarker,
-  MARKER_TYPE_COLORS,
-  type ISongMarker,
-  type MarkerType,
-} from "@/hooks/use-markers";
-
-const MARKER_TYPE_OPTIONS: MarkerType[] = [
-  "intro",
-  "verse",
-  "prechorus",
-  "chorus",
-  "bridge",
-  "solo",
-  "outro",
-  "ending",
-  "cue",
-  "click",
-];
+import { MarkerQuickAdd } from "@/components/player/marker-quick-add";
+import { useAutoDetectMarkers, useDeleteMarker, type ISongMarker } from "@/hooks/use-markers";
+import type { ISequenceSpan } from "@/hooks/use-multitrack-player";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -38,65 +20,95 @@ interface ITimelineProps {
   songId: number;
   mainUrl: string | undefined;
   markers: ISongMarker[] | undefined;
+  sequence: ISequenceSpan[];
+  currentSequenceIndex: number | null;
+  pendingSequenceIndex: number | null;
   currentTime: number;
   duration: number;
   loop: boolean;
   onSeek: (seconds: number) => void;
+  onSeekToSequenceIndex: (index: number) => void;
   onSetLoop: (value: boolean, start?: number, end?: number) => void;
 }
 
-export function Timeline({ songId, mainUrl, markers, currentTime, duration, loop, onSeek, onSetLoop }: ITimelineProps) {
+export function Timeline({
+  songId,
+  mainUrl,
+  markers,
+  sequence,
+  currentSequenceIndex,
+  pendingSequenceIndex,
+  currentTime,
+  duration,
+  loop,
+  onSeek,
+  onSeekToSequenceIndex,
+  onSetLoop,
+}: ITimelineProps) {
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
-  const createMarker = useCreateMarker(songId);
   const deleteMarker = useDeleteMarker(songId);
   const autoDetect = useAutoDetectMarkers(songId);
 
-  const [markerLabel, setMarkerLabel] = useState("");
-  const [markerType, setMarkerType] = useState<MarkerType>("cue");
-  const [addingMarker, setAddingMarker] = useState(false);
   const [zoom, setZoom] = useState(0);
 
   const sorted = [...(markers ?? [])].sort((a, b) => a.position_seconds - b.position_seconds);
-  const bands =
-    duration > 0
-      ? sorted.map((marker, i) => {
-          const end = i + 1 < sorted.length ? sorted[i + 1].position_seconds : duration;
-          const start = marker.position_seconds;
-          return { marker, start, widthPct: Math.max(0, ((end - start) / duration) * 100) };
-        })
-      : [];
+  const bands = sorted.map((marker) => {
+    const end = marker.end_time_seconds ?? duration;
+    const start = marker.position_seconds;
+    const widthPct = duration > 0 ? Math.max(0, ((end - start) / duration) * 100) : 0;
+    // A marker's canonical clickable slot is its first chronological occurrence
+    // in the sequence — repeats are only individually reachable from the
+    // sequence editor panel, where each row is an unambiguous specific slot.
+    const sequenceIndex = sequence.findIndex((s) => s.markerId === marker.id);
+    return { marker, start, widthPct, sequenceIndex };
+  });
 
   const playheadPct = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
+
+  const handleBandClick = (sequenceIndex: number, positionSeconds: number) => {
+    if (sequenceIndex === -1) {
+      onSeek(positionSeconds);
+      return;
+    }
+    onSeekToSequenceIndex(sequenceIndex);
+  };
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/6 bg-black/25">
       {/* Region band ruler */}
       <div className="relative flex h-8 w-full overflow-hidden border-b border-white/6">
         {bands.length > 0 ? (
-          bands.map(({ marker, widthPct }) => (
-            <button
-              key={marker.id}
-              onClick={() => onSeek(marker.position_seconds)}
-              className="group relative flex shrink-0 items-center justify-center overflow-hidden border-r border-black/40 px-1.5 text-[10px] font-semibold tracking-wide uppercase"
-              style={{
-                width: `${widthPct}%`,
-                minWidth: widthPct > 0 ? undefined : 0,
-                backgroundColor: `${marker.color}33`,
-                color: marker.color,
-              }}
-              title={marker.label}
-            >
-              <span className="truncate">{marker.label}</span>
-              <X
-                className="absolute top-1 right-1 size-3 opacity-0 group-hover:opacity-80"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteMarker.mutate(marker.id, { onError: () => toast.error("No se pudo borrar el marcador") });
+          bands.map(({ marker, widthPct, start, sequenceIndex }) => {
+            const isActive = sequenceIndex !== -1 && sequenceIndex === currentSequenceIndex;
+            const isPending = sequenceIndex !== -1 && sequenceIndex === pendingSequenceIndex;
+            return (
+              <button
+                key={marker.id}
+                onClick={() => handleBandClick(sequenceIndex, start)}
+                className={`group relative flex shrink-0 items-center justify-center overflow-hidden border-r border-black/40 px-1.5 text-[10px] font-semibold tracking-wide uppercase transition-shadow ${
+                  isActive ? "ring-2 ring-inset ring-white/80" : ""
+                } ${isPending ? "outline-dashed outline-2 outline-offset-[-2px] outline-white/60" : ""}`}
+                style={{
+                  width: `${widthPct}%`,
+                  minWidth: widthPct > 0 ? undefined : 0,
+                  backgroundColor: `${marker.color}33`,
+                  color: marker.color,
                 }}
-              />
-            </button>
-          ))
+                title={marker.label}
+              >
+                <span className="truncate">{marker.label}</span>
+                {isPending && <Clock3 className="ml-1 size-2.5 shrink-0" />}
+                <X
+                  className="absolute top-1 right-1 size-3 opacity-0 group-hover:opacity-80"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteMarker.mutate(marker.id, { onError: () => toast.error("No se pudo borrar el marcador") });
+                  }}
+                />
+              </button>
+            );
+          })
         ) : (
           <div className="flex flex-1 items-center px-3 text-[10px] text-white/25">Sin secciones marcadas</div>
         )}
@@ -108,60 +120,7 @@ export function Timeline({ songId, mainUrl, markers, currentTime, duration, loop
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/6 px-3 py-1.5">
-        {addingMarker ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <select
-              value={markerType}
-              onChange={(e) => setMarkerType(e.target.value as MarkerType)}
-              className="h-6 rounded-md border border-white/6 bg-black/30 px-1 text-[11px] text-white outline-none"
-            >
-              {MARKER_TYPE_OPTIONS.map((type) => (
-                <option key={type} value={type} className="bg-black">
-                  {type}
-                </option>
-              ))}
-            </select>
-            <input
-              autoFocus
-              className="h-6 w-28 rounded-md border border-white/6 bg-black/30 px-2 text-[11px] text-white outline-none placeholder:text-white/25 focus:border-orange-400/40"
-              placeholder="Nombre..."
-              value={markerLabel}
-              onChange={(e) => setMarkerLabel(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setAddingMarker(false)}
-            />
-            <button
-              onClick={() => {
-                createMarker.mutate(
-                  {
-                    label: markerLabel || markerType,
-                    marker_type: markerType,
-                    color: MARKER_TYPE_COLORS[markerType],
-                    position_seconds: currentTime,
-                  },
-                  { onError: () => toast.error("No se pudo crear el marcador") },
-                );
-                setMarkerLabel("");
-                setAddingMarker(false);
-              }}
-              className="rounded-md border border-orange-400/40 bg-orange-400/15 px-2 py-1 text-[10px] font-semibold text-orange-300"
-            >
-              Guardar
-            </button>
-            <button
-              onClick={() => setAddingMarker(false)}
-              className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/40"
-            >
-              Cancelar
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAddingMarker(true)}
-            className="flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/50 hover:border-orange-400/30 hover:text-orange-300"
-          >
-            <Plus className="size-3" /> Sección en {formatTime(currentTime)}
-          </button>
-        )}
+        <MarkerQuickAdd songId={songId} position={currentTime} triggerLabel={`Sección en ${formatTime(currentTime)}`} />
 
         <button
           onClick={() => {
@@ -172,7 +131,7 @@ export function Timeline({ songId, mainUrl, markers, currentTime, duration, loop
             });
           }}
           disabled={autoDetect.isPending}
-          title="Detecta cambios de sección por energía/timbre del audio y crea marcadores editables"
+          title="Detecta cambios de sección por energía/timbre del audio y crea marcadores editables. Esto reinicia tu secuencia de reproducción personalizada."
           className="flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-medium text-violet-300 hover:border-violet-400/50 disabled:opacity-50"
         >
           {autoDetect.isPending ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />}

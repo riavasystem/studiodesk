@@ -3,9 +3,19 @@ import { buildAuthenticatedStorageUrl } from "@/lib/api-client";
 import { MultitrackEngine } from "@/lib/multitrack-engine";
 import type { ITrack } from "@/hooks/use-tracks";
 
-export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
+export interface ISequenceSpan {
+  itemId: number;
+  markerId: number;
+  start: number;
+  end: number;
+}
+
+export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISequenceSpan[] = []) {
   const engineRef = useRef<MultitrackEngine | null>(null);
   const rafRef = useRef<number | null>(null);
+  const sequenceRef = useRef<ISequenceSpan[]>([]);
+  sequenceRef.current = sequence;
+  const lastCheckedTimeRef = useRef(0);
 
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +37,13 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   const [masterLevel, setMasterLevel] = useState(0);
   const [masterDb, setMasterDb] = useState(-Infinity);
   const [masterClipping, setMasterClipping] = useState(false);
+  const [isFaded, setIsFaded] = useState(false);
+  const masterVolumeRef = useRef(1);
+  const preFadeVolumeRef = useRef(1);
+  const [currentSequenceIndex, setCurrentSequenceIndex] = useState<number | null>(null);
+  const [pendingSequenceIndex, setPendingSequenceIndex] = useState<number | null>(null);
+  const pendingSequenceIndexRef = useRef<number | null>(null);
+  pendingSequenceIndexRef.current = pendingSequenceIndex;
 
   if (!engineRef.current) engineRef.current = new MultitrackEngine();
 
@@ -100,8 +117,37 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
       const engine = engineRef.current;
       if (engine) {
         // currentTime drives the playhead/waveform sync, so it updates every frame.
-        setCurrentTime(engine.currentTime);
+        const time = engine.currentTime;
+        setCurrentTime(time);
         setIsPlaying(engine.isPlaying);
+
+        const seq = sequenceRef.current;
+        const prevTime = lastCheckedTimeRef.current;
+        lastCheckedTimeRef.current = time;
+
+        if (seq.length > 0) {
+          const activeIndex = seq.findIndex((s) => time >= s.start && time < s.end);
+          if (activeIndex !== -1) setCurrentSequenceIndex(activeIndex);
+
+          const active = activeIndex !== -1 ? seq[activeIndex] : null;
+          // Crossing-detection (not a >= window) so this fires exactly once per
+          // boundary regardless of frame timing, and never re-fires while paused.
+          const crossedBoundary = active !== null && prevTime < active.end && time >= active.end;
+
+          if (crossedBoundary && engine.isPlaying) {
+            const pending = pendingSequenceIndexRef.current;
+            const nextIndex = pending !== null ? pending : activeIndex + 1;
+            if (nextIndex < seq.length) {
+              const nextSpan = seq[nextIndex];
+              engine.seekTo(nextSpan.start);
+              lastCheckedTimeRef.current = nextSpan.start;
+              setCurrentSequenceIndex(nextIndex);
+              setPendingSequenceIndex(null);
+            } else {
+              engine.pause();
+            }
+          }
+        }
 
         // Meters are throttled: re-rendering every mixer channel at 60fps makes
         // the whole console feel unresponsive to clicks/drags/typing once a song
@@ -179,13 +225,51 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
   }, []);
 
   const setMasterVolume = useCallback((value: number) => {
+    masterVolumeRef.current = value;
     setMasterVolumeState(value);
     engineRef.current?.setMasterVolume(value);
   }, []);
 
+  const seekToSequenceIndex = useCallback((index: number) => {
+    const engine = engineRef.current;
+    const span = sequenceRef.current[index];
+    if (!engine || !span) return;
+    if (engine.isPlaying) {
+      // Deferred: the currently-playing section keeps going until it naturally
+      // ends (handled in the tick loop above), then jumps here.
+      setPendingSequenceIndex(index);
+    } else {
+      engine.seekTo(span.start);
+      lastCheckedTimeRef.current = span.start;
+      setCurrentSequenceIndex(index);
+    }
+  }, []);
+
+  const cancelPendingSequenceIndex = useCallback(() => setPendingSequenceIndex(null), []);
+
   const setMetronomeOn = useCallback((value: boolean) => {
     setMetronomeOnState(value);
     engineRef.current?.setMetronome(value);
+  }, []);
+
+  const setBaseBpm = useCallback((bpm: number) => {
+    engineRef.current?.setBaseBpm(bpm);
+  }, []);
+
+  const FADE_SECONDS = 1.2;
+
+  const toggleGlobalFade = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    setIsFaded((prev) => {
+      if (!prev) {
+        preFadeVolumeRef.current = masterVolumeRef.current;
+        engine.fadeMasterTo(0, FADE_SECONDS);
+        return true;
+      }
+      engine.fadeMasterTo(preFadeVolumeRef.current, FADE_SECONDS);
+      return false;
+    });
   }, []);
 
   return {
@@ -211,6 +295,13 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined) {
     masterDb,
     masterClipping,
     setMasterVolume,
+    isFaded,
+    toggleGlobalFade,
+    setBaseBpm,
+    currentSequenceIndex,
+    pendingSequenceIndex,
+    seekToSequenceIndex,
+    cancelPendingSequenceIndex,
     play,
     pause,
     stop,

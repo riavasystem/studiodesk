@@ -10,14 +10,17 @@ function FooterToggle({
   label,
   active,
   onClick,
+  title,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
+  title?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       className={`flex h-7 items-center rounded-md border px-2.5 font-mono text-[10px] font-bold tracking-wide transition-colors ${
         active
           ? "border-orange-400/50 bg-orange-400/15 text-orange-300"
@@ -155,6 +158,7 @@ function Dial({
 interface IBottomBarProps {
   metronomeOn: boolean;
   onToggleMetronome: () => void;
+  bpm: number | null;
   tempo: number;
   onTempoChange: (value: number) => void;
   musicalKey: string;
@@ -170,6 +174,7 @@ interface IBottomBarProps {
 export function BottomBar({
   metronomeOn,
   onToggleMetronome,
+  bpm,
   tempo,
   onTempoChange,
   musicalKey,
@@ -187,7 +192,12 @@ export function BottomBar({
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 rounded-2xl border border-white/8 bg-linear-to-b from-white/4 to-transparent px-5 py-3">
-      <FooterToggle label="METRÓNOMO" active={metronomeOn} onClick={onToggleMetronome} />
+      <FooterToggle
+        label="METRÓNOMO"
+        active={metronomeOn}
+        onClick={onToggleMetronome}
+        title={bpm ? undefined : "BPM no definido — metrónomo a 120 por defecto"}
+      />
 
       <div className="h-8 w-px bg-white/8" />
 

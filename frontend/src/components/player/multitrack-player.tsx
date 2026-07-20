@@ -1,17 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TransportBar, type PlayerPanel } from "@/components/player/transport-bar";
 import { SongCarousel } from "@/components/player/song-carousel";
 import { Timeline } from "@/components/player/timeline";
+import { SequenceEditor } from "@/components/player/sequence-editor";
 import { BottomBar } from "@/components/player/bottom-bar";
 import { ChannelStrip } from "@/components/player/channel-strip";
 import { MasterStrip } from "@/components/player/master-strip";
 import { LyricsPanel } from "@/components/player/lyrics-panel";
-import { useMultitrackPlayer } from "@/hooks/use-multitrack-player";
+import { useMultitrackPlayer, type ISequenceSpan } from "@/hooks/use-multitrack-player";
 import { useMarkers } from "@/hooks/use-markers";
+import { useSequence } from "@/hooks/use-sequence";
 import { useLyrics } from "@/hooks/use-lyrics";
 import { useUpdateSong } from "@/hooks/use-songs";
+import { useQueueStore } from "@/store/queue-store";
 import type { ITrack, TrackType } from "@/hooks/use-tracks";
 import type { ISong } from "@/hooks/use-songs";
 
@@ -39,13 +42,58 @@ interface IMultitrackPlayerProps {
 }
 
 export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultitrackPlayerProps) {
-  const player = useMultitrackPlayer(tracks);
   const { data: markers } = useMarkers(song.id);
+  const { data: sequenceItems } = useSequence(song.id);
   const { data: lyrics } = useLyrics(song.id);
   const updateSong = useUpdateSong(song.id);
+  const setActiveSong = useQueueStore((s) => s.setActiveSong);
+
+  const sequenceSpans: ISequenceSpan[] = useMemo(() => {
+    const markerById = new Map((markers ?? []).map((m) => [m.id, m]));
+    const spans: ISequenceSpan[] = [];
+    for (const item of sequenceItems ?? []) {
+      const marker = markerById.get(item.marker_id);
+      if (!marker) continue;
+      spans.push({
+        itemId: item.id,
+        markerId: marker.id,
+        start: marker.position_seconds,
+        end: marker.end_time_seconds ?? Infinity,
+      });
+    }
+    return spans;
+  }, [markers, sequenceItems]);
+
+  const player = useMultitrackPlayer(tracks, sequenceSpans);
 
   const [panel, setPanel] = useState<PlayerPanel>("mixer");
   const [armedTracks, setArmedTracks] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    setActiveSong(song.id);
+  }, [song.id, setActiveSong]);
+
+  useEffect(() => {
+    player.setBaseBpm(song.bpm ?? 120);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [song.bpm]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        player.toggleGlobalFade();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const buildPayload = (track: ITrack, patch: Partial<ITrack>) => {
     const updated = { ...track, ...patch };
@@ -141,21 +189,33 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         onToggleLoop={() => player.setLoop(!player.loop)}
       />
 
-      <SongCarousel activeSongId={song.id} songs={songs} />
+      <SongCarousel activeSongId={song.id} allSongs={songs} />
 
       <Timeline
         songId={song.id}
         mainUrl={mainUrl}
         markers={markers}
+        sequence={sequenceSpans}
+        currentSequenceIndex={player.currentSequenceIndex}
+        pendingSequenceIndex={player.pendingSequenceIndex}
         currentTime={player.currentTime}
         duration={player.duration}
         loop={player.loop}
         onSeek={player.seekTo}
+        onSeekToSequenceIndex={player.seekToSequenceIndex}
         onSetLoop={player.setLoop}
       />
 
       {panel === "lyrics" ? (
         <LyricsPanel lines={lyrics ?? []} currentTime={player.currentTime} onSeek={player.seekTo} />
+      ) : panel === "sequence" ? (
+        <SequenceEditor
+          songId={song.id}
+          markers={markers}
+          sequenceItems={sequenceItems}
+          currentSequenceIndex={player.currentSequenceIndex}
+          onSeekToIndex={player.seekToSequenceIndex}
+        />
       ) : (
         <div className="rounded-2xl border border-white/6 bg-black/20 p-3">
           <div className="flex w-full flex-wrap gap-2">
@@ -212,6 +272,7 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
       <BottomBar
         metronomeOn={player.metronomeOn}
         onToggleMetronome={() => player.setMetronomeOn(!player.metronomeOn)}
+        bpm={song.bpm}
         tempo={player.tempo}
         onTempoChange={player.setTempo}
         musicalKey={song.musical_key ?? ""}

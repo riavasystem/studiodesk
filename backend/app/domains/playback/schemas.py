@@ -23,6 +23,7 @@ class SongMarkerCreate(BaseModel):
     marker_type: str = Field(default="cue", pattern="^(" + "|".join(sorted(MARKER_TYPES)) + ")$")
     color: str = Field(default="#ff8a1f", max_length=20)
     position_seconds: float = Field(ge=0)
+    end_time_seconds: float | None = Field(default=None, ge=0)
     loop_end_seconds: float | None = Field(default=None, ge=0)
     order_index: int = 0
 
@@ -40,7 +41,29 @@ class SongMarkerRead(BaseModel):
     marker_type: str
     color: str
     position_seconds: float
+    end_time_seconds: float | None
     loop_end_seconds: float | None
     order_index: int
     created_at: datetime
     updated_at: datetime
+
+
+class SectionSequenceItemCreate(BaseModel):
+    song_id: int
+    marker_id: int
+    order_index: int | None = None
+
+
+class SectionSequenceItemRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    song_id: int
+    marker_id: int
+    order_index: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class SequenceReorder(BaseModel):
+    item_ids: list[int]

@@ -36,6 +36,8 @@ const MAX_CONCURRENT_TRACK_LOADS = 4;
 export class MultitrackEngine {
   private nodes = new Map<number, ITrackNode>();
   private loaded = false;
+  private baseBpm = 120;
+  private playbackRate = 1;
 
   private masterGain = new Tone.Gain(1);
   private limiter = new Tone.Limiter(-1);
@@ -236,12 +238,22 @@ export class MultitrackEngine {
     this.masterGain.gain.rampTo(volume, 0.05);
   }
 
+  fadeMasterTo(target: number, seconds: number) {
+    this.masterGain.gain.rampTo(target, seconds);
+  }
+
   setPitch(semitones: number) {
     for (const node of this.nodes.values()) node.pitchShift.pitch = semitones;
   }
 
+  setBaseBpm(bpm: number) {
+    this.baseBpm = bpm > 0 ? bpm : 120;
+    Tone.getTransport().bpm.value = this.baseBpm * this.playbackRate;
+  }
+
   setTempo(playbackRate: number) {
-    Tone.getTransport().bpm.value = 120 * playbackRate;
+    this.playbackRate = playbackRate;
+    Tone.getTransport().bpm.value = this.baseBpm * playbackRate;
     for (const node of this.nodes.values()) node.player.playbackRate = playbackRate;
   }
 

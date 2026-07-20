@@ -1,16 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Music2, Play, Plus } from "lucide-react";
 import { resolveCoverImageUrl } from "@/lib/api-client";
+import { useQueueStore } from "@/store/queue-store";
+import { AddToQueueDialog } from "@/components/player/add-to-queue-dialog";
 import type { ISong } from "@/hooks/use-songs";
 
 interface ISongCarouselProps {
   activeSongId: number;
-  songs: ISong[];
+  allSongs: ISong[];
 }
 
-export function SongCarousel({ activeSongId, songs }: ISongCarouselProps) {
+export function SongCarousel({ activeSongId, allSongs }: ISongCarouselProps) {
+  const queue = useQueueStore((s) => s.queue);
+  const [addOpen, setAddOpen] = useState(false);
+
+  const songs = queue
+    .map((id) => allSongs.find((s) => s.id === id))
+    .filter((s): s is ISong => s !== undefined);
+
   if (songs.length === 0) return null;
 
   return (
@@ -59,12 +69,13 @@ export function SongCarousel({ activeSongId, songs }: ISongCarouselProps) {
           </Link>
         );
       })}
-      <Link
-        href="/dashboard/songs"
+      <button
+        onClick={() => setAddOpen(true)}
         className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/12 text-white/25 hover:border-white/25 hover:text-white/50"
       >
         <Plus className="size-5" />
-      </Link>
+      </button>
+      <AddToQueueDialog open={addOpen} onOpenChange={setAddOpen} allSongs={allSongs} queue={queue} />
     </div>
   );
 }

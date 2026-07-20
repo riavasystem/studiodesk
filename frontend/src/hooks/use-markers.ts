@@ -21,6 +21,7 @@ export interface ISongMarker {
   marker_type: MarkerType;
   color: string;
   position_seconds: number;
+  end_time_seconds: number | null;
   loop_end_seconds: number | null;
   order_index: number;
   created_at: string;
@@ -33,6 +34,7 @@ export interface ISongMarkerInput {
   marker_type: MarkerType;
   color: string;
   position_seconds: number;
+  end_time_seconds?: number | null;
   loop_end_seconds?: number | null;
   order_index?: number;
 }
@@ -81,7 +83,11 @@ export function useDeleteMarker(songId: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => apiFetch<void>(`/playback/markers/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["markers", songId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["markers", songId] });
+      // Deleting a marker cascades any sequence items referencing it server-side.
+      queryClient.invalidateQueries({ queryKey: ["sequence", songId] });
+    },
   });
 }
 
@@ -90,6 +96,10 @@ export function useAutoDetectMarkers(songId: number) {
   return useMutation({
     mutationFn: () =>
       apiFetch<ISongMarker[]>(`/playback/markers/auto-detect?song_id=${songId}`, { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["markers", songId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["markers", songId] });
+      // Auto-detect resets the custom playback sequence server-side too.
+      queryClient.invalidateQueries({ queryKey: ["sequence", songId] });
+    },
   });
 }
