@@ -38,7 +38,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   // to play, not require an extra manual step every time.
   const [metronomeOn, setMetronomeOnState] = useState(true);
   const metronomeOnRef = useRef(true);
-  const padOnRef = useRef(false);
+  const padOnRef = useRef(true);
   const [trackUrls, setTrackUrls] = useState<Map<number, string>>(new Map());
   const [trackLevels, setTrackLevels] = useState<Map<number, number>>(new Map());
   const [trackVolumeDisplay, setTrackVolumeDisplay] = useState<Map<number, number>>(new Map());
@@ -59,7 +59,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [metronomeLevel, setMetronomeLevel] = useState(0);
   const [metronomeDb, setMetronomeDb] = useState(-Infinity);
   const [metronomeClipping, setMetronomeClipping] = useState(false);
-  const [padOn, setPadOnState] = useState(false);
+  // Starts active, same as the click — the whole point of an "always
+  // running" ambient bed is that it's on unless the user turns it off.
+  const [padOn, setPadOnState] = useState(true);
   const [padVolume, setPadVolumeState] = useState(0.6);
   const [padVolumeDisplay, setPadVolumeDisplay] = useState(0.6);
   const [padLevel, setPadLevel] = useState(0);
@@ -77,8 +79,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   // Voice guide (GUIA): announces each section's name as it starts, using
   // the browser's built-in speech synthesis — no server-side TTS, so no
   // extra infra/cost, in line with "no paid AI services in v1".
-  const [guideOn, setGuideOnState] = useState(false);
-  const guideOnRef = useRef(false);
+  // Starts active too, same reasoning as the click/pad.
+  const [guideOn, setGuideOnState] = useState(true);
+  const guideOnRef = useRef(true);
   const [guideVolume, setGuideVolumeState] = useState(1);
   const guideVolumeRef = useRef(1);
   const wasPlayingRef = useRef(false);
