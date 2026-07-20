@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Clock3, Loader2, Minus, Plus, Radio, Wand2, ZoomIn } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
@@ -67,6 +67,18 @@ export function Timeline({
   const [renamingMarkerId, setRenamingMarkerId] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // A freshly-loaded song with no sections yet should read its structure
+  // immediately, instead of showing an empty timeline until the user
+  // remembers to press "Detectar secciones" manually.
+  const autoDetectedForSongRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!markers || markers.length > 0) return;
+    if (autoDetectedForSongRef.current === songId) return;
+    autoDetectedForSongRef.current = songId;
+    autoDetect.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songId, markers]);
 
   const commitRename = (marker: ISongMarker) => {
     const label = renameDraft.trim();
