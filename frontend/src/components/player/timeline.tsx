@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Clock3, Loader2, Minus, Plus, Wand2, X, ZoomIn } from "lucide-react";
+import { Clock3, Loader2, Minus, Plus, Wand2, ZoomIn } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TrackWaveform } from "@/components/player/track-waveform";
 import { MarkerQuickAdd } from "@/components/player/marker-quick-add";
 import { useAutoDetectMarkers, useDeleteMarker, useUpdateMarker, type ISongMarker } from "@/hooks/use-markers";
-import { useAppendSequenceItem, useRemoveSequenceItem } from "@/hooks/use-sequence";
+import { useAppendSequenceItem } from "@/hooks/use-sequence";
 import type { ISequenceSpan } from "@/hooks/use-multitrack-player";
 
 const MIN_SECTION_SECONDS = 1;
@@ -54,7 +54,6 @@ export function Timeline({
   const updateMarker = useUpdateMarker(songId);
   const autoDetect = useAutoDetectMarkers(songId);
   const appendItem = useAppendSequenceItem(songId);
-  const removeItem = useRemoveSequenceItem(songId);
 
   const [zoom, setZoom] = useState(0);
   const [dragBoundary, setDragBoundary] = useState<{ index: number; time: number } | null>(null);
@@ -157,8 +156,65 @@ export function Timeline({
 
   return (
     <div className="rounded-2xl border border-white/6 bg-black/25">
+      {/* Toolbar — kept above the section canvas so it doesn't split the
+          colored ruler from the waveform it labels. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-t-2xl border-b border-white/6 px-3 py-1.5">
+        <MarkerQuickAdd songId={songId} position={currentTime} triggerLabel={`Sección en ${formatTime(currentTime)}`} />
+
+        <button
+          onClick={() => {
+            autoDetect.mutate(undefined, {
+              onSuccess: (created) =>
+                toast.success(`Se detectaron ${created.length} secciones automáticamente`),
+              onError: () => toast.error("No se pudo analizar la estructura de la canción"),
+            });
+          }}
+          disabled={autoDetect.isPending}
+          title="Detecta cambios de sección por energía/timbre del audio y crea marcadores editables. Esto reinicia tu secuencia de reproducción personalizada."
+          className="flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-medium text-violet-300 hover:border-violet-400/50 disabled:opacity-50"
+        >
+          {autoDetect.isPending ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />}
+          Detectar secciones
+        </button>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setLoopA(currentTime)}
+            className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopA !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
+          >
+            A {loopA !== null ? formatTime(loopA) : ""}
+          </button>
+          <button
+            onClick={() => setLoopB(currentTime)}
+            className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopB !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
+          >
+            B {loopB !== null ? formatTime(loopB) : ""}
+          </button>
+          <button
+            onClick={() => {
+              if (loopA === null || loopB === null) return;
+              onSetLoop(!loop, Math.min(loopA, loopB), Math.max(loopA, loopB));
+            }}
+            disabled={loopA === null || loopB === null}
+            className="rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-mono text-[10px] text-cyan-300 disabled:opacity-30"
+          >
+            Loop A-B
+          </button>
+          <div className="h-4 w-px bg-white/10" />
+          <ZoomIn className="size-3.5 text-white/30" />
+          <Slider
+            className="w-24"
+            min={0}
+            max={200}
+            step={5}
+            value={[zoom]}
+            onValueChange={(value) => setZoom(Array.isArray(value) ? value[0] : value)}
+          />
+        </div>
+      </div>
+
       {/* Region band ruler */}
-      <div ref={rulerRef} className="relative flex h-8 w-full overflow-x-hidden rounded-t-2xl border-b border-white/6">
+      <div ref={rulerRef} className="relative flex h-8 w-full overflow-x-hidden border-b border-white/6">
         {bands.length > 0 ? (
           bands.map(({ marker, widthPct, start, sequenceIndex }) => {
             const isActive = sequenceIndex !== -1 && sequenceIndex === currentSequenceIndex;
@@ -183,26 +239,14 @@ export function Timeline({
                 <span className="truncate">{marker.label}</span>
                 {isPending && <Clock3 className="ml-1 size-2.5 shrink-0" />}
 
-                <X
-                  className="absolute top-1 right-1 size-3 opacity-0 group-hover:opacity-80"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteMarker.mutate(marker.id, { onError: () => toast.error("No se pudo borrar el marcador") });
-                  }}
-                />
-
                 <button
                   type="button"
-                  title="Quitar esta sección de la secuencia de reproducción"
-                  disabled={sequenceIndex === -1}
+                  title="Eliminar esta sección"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (sequenceIndex === -1) return;
-                    removeItem.mutate(sequence[sequenceIndex].itemId, {
-                      onError: () => toast.error("No se pudo quitar la sección"),
-                    });
+                    deleteMarker.mutate(marker.id, { onError: () => toast.error("No se pudo eliminar la sección") });
                   }}
-                  className="absolute bottom-1 left-1 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-90 disabled:opacity-0"
+                  className="absolute bottom-1 left-1 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-90"
                 >
                   <Minus className="size-2.5" />
                 </button>
@@ -270,71 +314,23 @@ export function Timeline({
         />
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/6 px-3 py-1.5">
-        <MarkerQuickAdd songId={songId} position={currentTime} triggerLabel={`Sección en ${formatTime(currentTime)}`} />
-
-        <button
-          onClick={() => {
-            autoDetect.mutate(undefined, {
-              onSuccess: (created) =>
-                toast.success(`Se detectaron ${created.length} secciones automáticamente`),
-              onError: () => toast.error("No se pudo analizar la estructura de la canción"),
-            });
-          }}
-          disabled={autoDetect.isPending}
-          title="Detecta cambios de sección por energía/timbre del audio y crea marcadores editables. Esto reinicia tu secuencia de reproducción personalizada."
-          className="flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-medium text-violet-300 hover:border-violet-400/50 disabled:opacity-50"
-        >
-          {autoDetect.isPending ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />}
-          Detectar secciones
-        </button>
-
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => setLoopA(currentTime)}
-            className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopA !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
-          >
-            A {loopA !== null ? formatTime(loopA) : ""}
-          </button>
-          <button
-            onClick={() => setLoopB(currentTime)}
-            className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopB !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
-          >
-            B {loopB !== null ? formatTime(loopB) : ""}
-          </button>
-          <button
-            onClick={() => {
-              if (loopA === null || loopB === null) return;
-              onSetLoop(!loop, Math.min(loopA, loopB), Math.max(loopA, loopB));
-            }}
-            disabled={loopA === null || loopB === null}
-            className="rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-mono text-[10px] text-cyan-300 disabled:opacity-30"
-          >
-            Loop A-B
-          </button>
-          <div className="h-4 w-px bg-white/10" />
-          <ZoomIn className="size-3.5 text-white/30" />
-          <Slider
-            className="w-24"
-            min={0}
-            max={200}
-            step={5}
-            value={[zoom]}
-            onValueChange={(value) => setZoom(Array.isArray(value) ? value[0] : value)}
-          />
-        </div>
-      </div>
-
       <div className="overflow-x-auto rounded-b-2xl px-3 py-3">
         <div className="relative">
-          {/* Colored section overlays directly on the waveform canvas */}
+          {/* Colored section overlays directly on the waveform canvas. When
+              sections exist, this layer intercepts clicks so a double-click
+              anywhere on a section defers to the sequence logic exactly like
+              the ruler above — a plain single click on the waveform would
+              otherwise seek WaveSurfer immediately, skipping the deferral. */}
           {bands.length > 0 && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex">
-              {bands.map(({ marker, widthPct }) => (
+            <div className="absolute inset-0 z-10 flex">
+              {bands.map(({ marker, widthPct, start, sequenceIndex }) => (
                 <div
                   key={marker.id}
-                  className="relative h-full shrink-0 border-r border-white/10"
+                  role="button"
+                  tabIndex={-1}
+                  onDoubleClick={() => handleBandSeek(sequenceIndex, start)}
+                  title={`${marker.label} · doble click para reproducir a continuación`}
+                  className="relative h-full shrink-0 cursor-pointer border-r border-white/10 select-none"
                   style={{ width: `${widthPct}%`, backgroundColor: `${marker.color}26` }}
                 >
                   <span

@@ -7,6 +7,7 @@ import { Timeline } from "@/components/player/timeline";
 import { SequenceEditor } from "@/components/player/sequence-editor";
 import { BottomBar } from "@/components/player/bottom-bar";
 import { ChannelStrip } from "@/components/player/channel-strip";
+import { MetronomeStrip } from "@/components/player/metronome-strip";
 import { MasterStrip } from "@/components/player/master-strip";
 import { LyricsPanel } from "@/components/player/lyrics-panel";
 import { useMultitrackPlayer, type ISequenceSpan } from "@/hooks/use-multitrack-player";
@@ -219,42 +220,18 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
       ) : (
         <div className="rounded-2xl border border-white/6 bg-black/20 p-3">
           <div className="flex w-full flex-wrap gap-2">
-            <ChannelStrip
-              track={{
-                id: -1,
-                song_id: song.id,
-                name: "Click",
-                file_path: "",
-                order_index: -1,
-                volume: player.metronomeVolume,
-                pan: 0,
-                is_muted: !player.metronomeOn,
-                is_solo: false,
-                is_phase_inverted: false,
-                color: "#64748b",
-                track_type: "click",
-                is_hidden: false,
-                duration_seconds: null,
-                created_at: "",
-                updated_at: "",
-              }}
+            <MetronomeStrip
               color="#64748b"
+              volume={player.metronomeVolume}
               level={player.metronomeLevel}
               db={player.metronomeDb}
               clipping={player.metronomeClipping}
-              audible={player.metronomeOn}
+              isOn={player.metronomeOn}
               isPlaying={player.isPlaying}
-              armed={false}
-              onToggleArm={() => {}}
-              onToggleMute={() => player.setMetronomeOn(!player.metronomeOn)}
-              onToggleSolo={() => {}}
+              tempo={player.tempo}
+              onToggleOn={() => player.setMetronomeOn(!player.metronomeOn)}
               onVolumeChange={player.setMetronomeVolume}
-              onPanChange={() => {}}
-              onPhaseToggle={() => {}}
-              onEQChange={() => {}}
-              onCompressorToggle={() => {}}
-              onReverbSendChange={() => {}}
-              onRename={() => {}}
+              onTempoChange={player.setTempo}
             />
 
             {tracks.map((track, i) => {
