@@ -40,6 +40,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [isFaded, setIsFaded] = useState(false);
   const masterVolumeRef = useRef(1);
   const preFadeVolumeRef = useRef(1);
+  const [metronomeVolume, setMetronomeVolumeState] = useState(1);
+  const [metronomeLevel, setMetronomeLevel] = useState(0);
+  const [metronomeDb, setMetronomeDb] = useState(-Infinity);
+  const [metronomeClipping, setMetronomeClipping] = useState(false);
   const [currentSequenceIndex, setCurrentSequenceIndex] = useState<number | null>(null);
   const [pendingSequenceIndex, setPendingSequenceIndex] = useState<number | null>(null);
   const pendingSequenceIndexRef = useRef<number | null>(null);
@@ -160,6 +164,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
           setMasterLevel(engine.getMasterLevel());
           setMasterDb(engine.getMasterDb());
           setMasterClipping(engine.isMasterClipping());
+          setMetronomeLevel(engine.getMetronomeLevel());
+          setMetronomeDb(engine.getMetronomeDb());
+          setMetronomeClipping(engine.isMetronomeClipping());
         }
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -256,6 +263,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.setBaseBpm(bpm);
   }, []);
 
+  const setMetronomeVolume = useCallback((value: number) => {
+    setMetronomeVolumeState(value);
+    engineRef.current?.setMetronomeVolume(value);
+  }, []);
+
   const FADE_SECONDS = 1.2;
 
   const toggleGlobalFade = useCallback(() => {
@@ -264,10 +276,12 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setIsFaded((prev) => {
       if (!prev) {
         preFadeVolumeRef.current = masterVolumeRef.current;
-        engine.fadeMasterTo(0, FADE_SECONDS);
+        // Fades every track's own gain (visible on each channel's VU meter),
+        // not just the master bus, so the mixer clearly shows volume dropping.
+        engine.fadeTracksOut(FADE_SECONDS);
         return true;
       }
-      engine.fadeMasterTo(preFadeVolumeRef.current, FADE_SECONDS);
+      engine.fadeTracksIn(FADE_SECONDS);
       return false;
     });
   }, []);
@@ -298,6 +312,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     isFaded,
     toggleGlobalFade,
     setBaseBpm,
+    metronomeVolume,
+    setMetronomeVolume,
+    metronomeLevel,
+    metronomeDb,
+    metronomeClipping,
     currentSequenceIndex,
     pendingSequenceIndex,
     seekToSequenceIndex,

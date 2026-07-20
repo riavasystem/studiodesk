@@ -47,7 +47,12 @@ export class MultitrackEngine {
   private metronomeSynth = new Tone.MembraneSynth({
     envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.01 },
   });
+  private metronomeGain = new Tone.Gain(1);
+  private metronomeMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
+  private metronomeMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
   private metronomeEventId: number | null = null;
+  private preFadeTrackVolumes = new Map<number, number>();
+  private metronomeVolumeValue = 1;
 
   constructor() {
     this.masterGain.connect(this.limiter);
@@ -55,7 +60,10 @@ export class MultitrackEngine {
     this.limiter.connect(this.masterMeterDb);
     this.limiter.toDestination();
     this.reverb.connect(this.masterGain);
-    this.metronomeSynth.connect(this.masterGain);
+    this.metronomeSynth.connect(this.metronomeGain);
+    this.metronomeGain.connect(this.masterGain);
+    this.metronomeGain.connect(this.metronomeMeter);
+    this.metronomeGain.connect(this.metronomeMeterDb);
     void this.reverb.generate();
   }
 
@@ -234,12 +242,49 @@ export class MultitrackEngine {
     return this.getMasterDb() >= CLIP_THRESHOLD_DB;
   }
 
+  getMetronomeLevel(): number {
+    const value = this.metronomeMeter.getValue();
+    return typeof value === "number" ? value : 0;
+  }
+
+  getMetronomeDb(): number {
+    const value = this.metronomeMeterDb.getValue();
+    return typeof value === "number" ? value : -Infinity;
+  }
+
+  isMetronomeClipping(): boolean {
+    return this.getMetronomeDb() >= CLIP_THRESHOLD_DB;
+  }
+
+  setMetronomeVolume(volume: number) {
+    this.metronomeVolumeValue = volume;
+    this.metronomeGain.gain.rampTo(volume, 0.05);
+  }
+
   setMasterVolume(volume: number) {
     this.masterGain.gain.rampTo(volume, 0.05);
   }
 
   fadeMasterTo(target: number, seconds: number) {
     this.masterGain.gain.rampTo(target, seconds);
+  }
+
+  /** Fades every track's own gain (not just the master bus) so channel VU
+   * meters — which tap the signal upstream of masterGain — visibly move too. */
+  fadeTracksOut(seconds: number) {
+    for (const [id, node] of this.nodes) {
+      this.preFadeTrackVolumes.set(id, node.gain.gain.value);
+      node.gain.gain.rampTo(0, seconds);
+    }
+    this.metronomeGain.gain.rampTo(0, seconds);
+  }
+
+  fadeTracksIn(seconds: number) {
+    for (const [id, node] of this.nodes) {
+      const target = this.preFadeTrackVolumes.get(id);
+      if (target !== undefined) node.gain.gain.rampTo(target, seconds);
+    }
+    this.metronomeGain.gain.rampTo(this.metronomeVolumeValue, seconds);
   }
 
   setPitch(semitones: number) {

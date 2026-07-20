@@ -219,6 +219,44 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
       ) : (
         <div className="rounded-2xl border border-white/6 bg-black/20 p-3">
           <div className="flex w-full flex-wrap gap-2">
+            <ChannelStrip
+              track={{
+                id: -1,
+                song_id: song.id,
+                name: "Click",
+                file_path: "",
+                order_index: -1,
+                volume: player.metronomeVolume,
+                pan: 0,
+                is_muted: !player.metronomeOn,
+                is_solo: false,
+                is_phase_inverted: false,
+                color: "#64748b",
+                track_type: "click",
+                is_hidden: false,
+                duration_seconds: null,
+                created_at: "",
+                updated_at: "",
+              }}
+              color="#64748b"
+              level={player.metronomeLevel}
+              db={player.metronomeDb}
+              clipping={player.metronomeClipping}
+              audible={player.metronomeOn}
+              isPlaying={player.isPlaying}
+              armed={false}
+              onToggleArm={() => {}}
+              onToggleMute={() => player.setMetronomeOn(!player.metronomeOn)}
+              onToggleSolo={() => {}}
+              onVolumeChange={player.setMetronomeVolume}
+              onPanChange={() => {}}
+              onPhaseToggle={() => {}}
+              onEQChange={() => {}}
+              onCompressorToggle={() => {}}
+              onReverbSendChange={() => {}}
+              onRename={() => {}}
+            />
+
             {tracks.map((track, i) => {
               const level = player.trackLevels.get(track.id) ?? 0;
               const audible = anySolo ? track.is_solo : !track.is_muted;

@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Clock3, Loader2, Wand2, X, ZoomIn } from "lucide-react";
+import { Clock3, Loader2, Minus, Plus, Wand2, X, ZoomIn } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { TrackWaveform } from "@/components/player/track-waveform";
 import { MarkerQuickAdd } from "@/components/player/marker-quick-add";
-import { useAutoDetectMarkers, useDeleteMarker, type ISongMarker } from "@/hooks/use-markers";
+import { useAutoDetectMarkers, useDeleteMarker, useUpdateMarker, type ISongMarker } from "@/hooks/use-markers";
+import { useAppendSequenceItem, useRemoveSequenceItem } from "@/hooks/use-sequence";
 import type { ISequenceSpan } from "@/hooks/use-multitrack-player";
+
+const MIN_SECTION_SECONDS = 1;
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -48,25 +51,35 @@ export function Timeline({
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
   const deleteMarker = useDeleteMarker(songId);
+  const updateMarker = useUpdateMarker(songId);
   const autoDetect = useAutoDetectMarkers(songId);
+  const appendItem = useAppendSequenceItem(songId);
+  const removeItem = useRemoveSequenceItem(songId);
 
   const [zoom, setZoom] = useState(0);
+  const [dragBoundary, setDragBoundary] = useState<{ index: number; time: number } | null>(null);
+  const [addMenuFor, setAddMenuFor] = useState<number | null>(null);
+  const rulerRef = useRef<HTMLDivElement>(null);
 
   const sorted = [...(markers ?? [])].sort((a, b) => a.position_seconds - b.position_seconds);
-  const bands = sorted.map((marker) => {
-    const end = marker.end_time_seconds ?? duration;
-    const start = marker.position_seconds;
+  const bands = sorted.map((marker, index) => {
+    const rawStart = marker.position_seconds;
+    const rawEnd = marker.end_time_seconds ?? duration;
+    // While a boundary handle is being dragged, preview the new split live on
+    // both sides of it before anything is persisted (committed on pointer up).
+    const start = dragBoundary && index === dragBoundary.index + 1 ? dragBoundary.time : rawStart;
+    const end = dragBoundary && index === dragBoundary.index ? dragBoundary.time : rawEnd;
     const widthPct = duration > 0 ? Math.max(0, ((end - start) / duration) * 100) : 0;
     // A marker's canonical clickable slot is its first chronological occurrence
     // in the sequence — repeats are only individually reachable from the
     // sequence editor panel, where each row is an unambiguous specific slot.
     const sequenceIndex = sequence.findIndex((s) => s.markerId === marker.id);
-    return { marker, start, widthPct, sequenceIndex };
+    return { marker, start, end, widthPct, sequenceIndex, index };
   });
 
   const playheadPct = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
 
-  const handleBandClick = (sequenceIndex: number, positionSeconds: number) => {
+  const handleBandSeek = (sequenceIndex: number, positionSeconds: number) => {
     if (sequenceIndex === -1) {
       onSeek(positionSeconds);
       return;
@@ -74,19 +87,90 @@ export function Timeline({
     onSeekToSequenceIndex(sequenceIndex);
   };
 
+  const handleBoundaryPointerDown = useCallback(
+    (index: number) => (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const rulerEl = rulerRef.current;
+      const left = sorted[index];
+      const right = sorted[index + 1];
+      if (!rulerEl || duration <= 0 || !left || !right) return;
+
+      const minTime = left.position_seconds + MIN_SECTION_SECONDS;
+      const maxTime = (right.end_time_seconds ?? duration) - MIN_SECTION_SECONDS;
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        const rect = rulerEl.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (moveEvent.clientX - rect.left) / rect.width));
+        const time = Math.min(maxTime, Math.max(minTime, ratio * duration));
+        setDragBoundary({ index, time });
+      };
+
+      const handleUp = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        setDragBoundary((current) => {
+          if (current && current.index === index) {
+            updateMarker.mutate(
+              {
+                id: left.id,
+                label: left.label,
+                marker_type: left.marker_type,
+                color: left.color,
+                position_seconds: left.position_seconds,
+                end_time_seconds: current.time,
+                loop_end_seconds: left.loop_end_seconds,
+              },
+              { onError: () => toast.error("No se pudo mover el límite de la sección") },
+            );
+            updateMarker.mutate(
+              {
+                id: right.id,
+                label: right.label,
+                marker_type: right.marker_type,
+                color: right.color,
+                position_seconds: current.time,
+                end_time_seconds: right.end_time_seconds,
+                loop_end_seconds: right.loop_end_seconds,
+              },
+              { onError: () => toast.error("No se pudo mover el límite de la sección") },
+            );
+          }
+          return null;
+        });
+      };
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+    },
+    [sorted, duration, updateMarker],
+  );
+
+  useEffect(() => {
+    if (addMenuFor === null) return;
+    // Clicks on the trigger or inside the popover stopPropagation, so this
+    // only ever fires for genuine outside clicks.
+    const close = () => setAddMenuFor(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [addMenuFor]);
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/6 bg-black/25">
+    <div className="rounded-2xl border border-white/6 bg-black/25">
       {/* Region band ruler */}
-      <div className="relative flex h-8 w-full overflow-hidden border-b border-white/6">
+      <div ref={rulerRef} className="relative flex h-8 w-full overflow-x-hidden rounded-t-2xl border-b border-white/6">
         {bands.length > 0 ? (
           bands.map(({ marker, widthPct, start, sequenceIndex }) => {
             const isActive = sequenceIndex !== -1 && sequenceIndex === currentSequenceIndex;
             const isPending = sequenceIndex !== -1 && sequenceIndex === pendingSequenceIndex;
             return (
-              <button
+              <div
                 key={marker.id}
-                onClick={() => handleBandClick(sequenceIndex, start)}
-                className={`group relative flex shrink-0 items-center justify-center overflow-hidden border-r border-black/40 px-1.5 text-[10px] font-semibold tracking-wide uppercase transition-shadow ${
+                role="button"
+                tabIndex={0}
+                onDoubleClick={() => handleBandSeek(sequenceIndex, start)}
+                title={`${marker.label} · doble click para reproducir a continuación`}
+                className={`group relative flex shrink-0 items-center justify-center overflow-visible border-r border-black/40 px-1.5 text-[10px] font-semibold tracking-wide uppercase transition-shadow select-none ${
                   isActive ? "ring-2 ring-inset ring-white/80" : ""
                 } ${isPending ? "outline-dashed outline-2 outline-offset-[-2px] outline-white/60" : ""}`}
                 style={{
@@ -95,10 +179,10 @@ export function Timeline({
                   backgroundColor: `${marker.color}33`,
                   color: marker.color,
                 }}
-                title={marker.label}
               >
                 <span className="truncate">{marker.label}</span>
                 {isPending && <Clock3 className="ml-1 size-2.5 shrink-0" />}
+
                 <X
                   className="absolute top-1 right-1 size-3 opacity-0 group-hover:opacity-80"
                   onClick={(e) => {
@@ -106,12 +190,80 @@ export function Timeline({
                     deleteMarker.mutate(marker.id, { onError: () => toast.error("No se pudo borrar el marcador") });
                   }}
                 />
-              </button>
+
+                <button
+                  type="button"
+                  title="Quitar esta sección de la secuencia de reproducción"
+                  disabled={sequenceIndex === -1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (sequenceIndex === -1) return;
+                    removeItem.mutate(sequence[sequenceIndex].itemId, {
+                      onError: () => toast.error("No se pudo quitar la sección"),
+                    });
+                  }}
+                  className="absolute bottom-1 left-1 flex size-3.5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-90 disabled:opacity-0"
+                >
+                  <Minus className="size-2.5" />
+                </button>
+
+                <button
+                  type="button"
+                  title="Agregar una sección después de esta"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAddMenuFor((prev) => (prev === marker.id ? null : marker.id));
+                  }}
+                  className="absolute right-1 bottom-1 flex size-3.5 items-center justify-center rounded-full bg-emerald-500 text-white opacity-0 group-hover:opacity-90"
+                >
+                  <Plus className="size-2.5" />
+                </button>
+
+                {addMenuFor === marker.id && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-full left-0 z-40 mt-1 max-h-40 w-40 overflow-y-auto rounded-md border border-white/10 bg-black/95 p-1 text-left normal-case shadow-xl"
+                  >
+                    {(markers ?? []).map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          appendItem.mutate(
+                            { marker_id: option.id, order_index: sequenceIndex !== -1 ? sequenceIndex + 1 : undefined },
+                            { onError: () => toast.error("No se pudo agregar la sección") },
+                          );
+                          setAddMenuFor(null);
+                        }}
+                        className="block w-full truncate rounded px-2 py-1 text-left text-[10px] font-normal tracking-normal text-white/70 hover:bg-white/10 hover:text-white"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })
         ) : (
           <div className="flex flex-1 items-center px-3 text-[10px] text-white/25">Sin secciones marcadas</div>
         )}
+
+        {/* Draggable handles between adjacent sections, so their shared
+            boundary can be resized without touching the original audio. */}
+        {bands.slice(0, -1).map((band, index) => {
+          const leftPct = duration > 0 ? (band.end / duration) * 100 : 0;
+          return (
+            <div
+              key={`boundary-${band.marker.id}`}
+              onPointerDown={handleBoundaryPointerDown(index)}
+              title="Arrastrar para mover el límite entre secciones"
+              className="absolute top-0 bottom-0 z-30 w-2 -translate-x-1/2 cursor-col-resize hover:bg-white/30"
+              style={{ left: `${leftPct}%` }}
+            />
+          );
+        })}
+
         <div
           className="pointer-events-none absolute top-0 bottom-0 w-px bg-white"
           style={{ left: `${playheadPct}%` }}
@@ -174,7 +326,7 @@ export function Timeline({
         </div>
       </div>
 
-      <div className="overflow-x-auto px-3 py-3">
+      <div className="overflow-x-auto rounded-b-2xl px-3 py-3">
         <div className="relative">
           {/* Colored section overlays directly on the waveform canvas */}
           {bands.length > 0 && (
