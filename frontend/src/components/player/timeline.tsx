@@ -13,6 +13,11 @@ import type { ISequenceSpan } from "@/hooks/use-multitrack-player";
 
 const MIN_SECTION_SECONDS = 1;
 
+type DragState =
+  | { kind: "boundary"; index: number; time: number }
+  | { kind: "leading"; time: number }
+  | { kind: "trailing"; time: number };
+
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds)) return "0:00";
   const m = Math.floor(seconds / 60);
@@ -59,7 +64,7 @@ export function Timeline({
   const appendItem = useAppendSequenceItem(songId);
 
   const [zoom, setZoom] = useState(0);
-  const [dragBoundary, setDragBoundary] = useState<{ index: number; time: number } | null>(null);
+  const [dragState, setDragState] = useState<DragState | null>(null);
   const [addDialogForMarkerId, setAddDialogForMarkerId] = useState<number | null>(null);
   const [renamingMarkerId, setRenamingMarkerId] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -85,12 +90,18 @@ export function Timeline({
 
   const sorted = [...(markers ?? [])].sort((a, b) => a.position_seconds - b.position_seconds);
   const bands = sorted.map((marker, index) => {
-    const rawStart = marker.position_seconds;
-    const rawEnd = marker.end_time_seconds ?? duration;
-    // While a boundary handle is being dragged, preview the new split live on
-    // both sides of it before anything is persisted (committed on pointer up).
-    const start = dragBoundary && index === dragBoundary.index + 1 ? dragBoundary.time : rawStart;
-    const end = dragBoundary && index === dragBoundary.index ? dragBoundary.time : rawEnd;
+    let start = marker.position_seconds;
+    let end = marker.end_time_seconds ?? duration;
+    // While a boundary/edge handle is being dragged, preview the new split
+    // live before anything is persisted (committed on pointer up).
+    if (dragState?.kind === "boundary") {
+      if (index === dragState.index) end = dragState.time;
+      if (index === dragState.index + 1) start = dragState.time;
+    } else if (dragState?.kind === "leading" && index === 0) {
+      start = dragState.time;
+    } else if (dragState?.kind === "trailing" && index === sorted.length - 1) {
+      end = dragState.time;
+    }
     const widthPct = duration > 0 ? Math.max(0, ((end - start) / duration) * 100) : 0;
     // A marker's canonical clickable slot is its first chronological occurrence
     // in the sequence — repeats are only individually reachable from the
@@ -110,6 +121,28 @@ export function Timeline({
     onSeekToSequenceIndex(sequenceIndex);
   };
 
+  const handlePlayheadPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const canvasEl = canvasRef.current;
+      if (!canvasEl || duration <= 0) return;
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        const rect = canvasEl.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (moveEvent.clientX - rect.left) / rect.width));
+        onSeek(ratio * duration);
+      };
+      const handleUp = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+      };
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+    },
+    [duration, onSeek],
+  );
+
   const handleBoundaryPointerDown = useCallback(
     (index: number) => (e: React.PointerEvent) => {
       e.stopPropagation();
@@ -126,14 +159,14 @@ export function Timeline({
         const rect = canvasEl.getBoundingClientRect();
         const ratio = Math.min(1, Math.max(0, (moveEvent.clientX - rect.left) / rect.width));
         const time = Math.min(maxTime, Math.max(minTime, ratio * duration));
-        setDragBoundary({ index, time });
+        setDragState({ kind: "boundary", index, time });
       };
 
       const handleUp = () => {
         window.removeEventListener("pointermove", handleMove);
         window.removeEventListener("pointerup", handleUp);
-        setDragBoundary((current) => {
-          if (current && current.index === index) {
+        setDragState((current) => {
+          if (current && current.kind === "boundary" && current.index === index) {
             updateMarker.mutate(
               {
                 id: left.id,
@@ -155,6 +188,96 @@ export function Timeline({
                 position_seconds: current.time,
                 end_time_seconds: right.end_time_seconds,
                 loop_end_seconds: right.loop_end_seconds,
+              },
+              { onError: () => toast.error("No se pudo mover el límite de la sección") },
+            );
+          }
+          return null;
+        });
+      };
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+    },
+    [sorted, duration, updateMarker],
+  );
+
+  const handleLeadingPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const canvasEl = canvasRef.current;
+      const first = sorted[0];
+      if (!canvasEl || duration <= 0 || !first) return;
+
+      const maxTime = (first.end_time_seconds ?? duration) - MIN_SECTION_SECONDS;
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        const rect = canvasEl.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (moveEvent.clientX - rect.left) / rect.width));
+        const time = Math.min(maxTime, Math.max(0, ratio * duration));
+        setDragState({ kind: "leading", time });
+      };
+
+      const handleUp = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        setDragState((current) => {
+          if (current && current.kind === "leading") {
+            updateMarker.mutate(
+              {
+                id: first.id,
+                label: first.label,
+                marker_type: first.marker_type,
+                color: first.color,
+                position_seconds: current.time,
+                end_time_seconds: first.end_time_seconds,
+                loop_end_seconds: first.loop_end_seconds,
+              },
+              { onError: () => toast.error("No se pudo mover el límite de la sección") },
+            );
+          }
+          return null;
+        });
+      };
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+    },
+    [sorted, duration, updateMarker],
+  );
+
+  const handleTrailingPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const canvasEl = canvasRef.current;
+      const last = sorted[sorted.length - 1];
+      if (!canvasEl || duration <= 0 || !last) return;
+
+      const minTime = last.position_seconds + MIN_SECTION_SECONDS;
+
+      const handleMove = (moveEvent: PointerEvent) => {
+        const rect = canvasEl.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (moveEvent.clientX - rect.left) / rect.width));
+        const time = Math.min(duration, Math.max(minTime, ratio * duration));
+        setDragState({ kind: "trailing", time });
+      };
+
+      const handleUp = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        setDragState((current) => {
+          if (current && current.kind === "trailing") {
+            updateMarker.mutate(
+              {
+                id: last.id,
+                label: last.label,
+                marker_type: last.marker_type,
+                color: last.color,
+                position_seconds: last.position_seconds,
+                end_time_seconds: current.time,
+                loop_end_seconds: last.loop_end_seconds,
               },
               { onError: () => toast.error("No se pudo mover el límite de la sección") },
             );
@@ -292,7 +415,7 @@ export function Timeline({
                               onError: () => toast.error("No se pudo eliminar la sección"),
                             });
                           }}
-                          className="absolute bottom-1 left-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-white opacity-90"
+                          className="absolute bottom-1 left-1 z-40 flex size-4 items-center justify-center rounded-full bg-red-500 text-white opacity-90"
                         >
                           <Minus className="size-2.5" />
                         </button>
@@ -320,9 +443,12 @@ export function Timeline({
             </div>
           )}
 
-          {/* Draggable handles between adjacent sections, so their shared
-              boundary can be resized without touching the original audio.
-              Only shown in edit mode to avoid stray edits during playback. */}
+          {/* Draggable handles for section boundaries, so they can be resized
+              without touching the original audio. Restricted to the top ~65%
+              of the canvas — the bottom strip is reserved for each band's
+              delete/add buttons, which otherwise sit right where an
+              edge-to-edge handle would swallow their clicks. Only shown in
+              edit mode to avoid stray edits during playback. */}
           {editMode &&
             bands.slice(0, -1).map((band, index) => {
               const leftPct = duration > 0 ? (band.end / duration) * 100 : 0;
@@ -331,7 +457,7 @@ export function Timeline({
                   key={`boundary-${band.marker.id}`}
                   onPointerDown={handleBoundaryPointerDown(index)}
                   title="Arrastrar para mover el límite entre secciones"
-                  className="group absolute top-0 bottom-0 z-30 flex w-5 -translate-x-1/2 cursor-col-resize items-center justify-center"
+                  className="group absolute top-0 z-30 flex h-[65%] w-5 -translate-x-1/2 cursor-col-resize items-center justify-center"
                   style={{ left: `${leftPct}%` }}
                 >
                   <div className="h-full w-1 rounded-full bg-white/25 group-hover:bg-white/70" />
@@ -339,11 +465,37 @@ export function Timeline({
               );
             })}
 
-          {/* Playhead */}
+          {editMode && bands.length > 0 && (
+            <div
+              onPointerDown={handleLeadingPointerDown}
+              title="Arrastrar para mover el inicio de la primera sección"
+              className="group absolute top-0 z-30 flex h-[65%] w-5 -translate-x-1/2 cursor-col-resize items-center justify-center"
+              style={{ left: `${duration > 0 ? (bands[0].start / duration) * 100 : 0}%` }}
+            >
+              <div className="h-full w-1 rounded-full bg-white/25 group-hover:bg-white/70" />
+            </div>
+          )}
+
+          {editMode && bands.length > 0 && (
+            <div
+              onPointerDown={handleTrailingPointerDown}
+              title="Arrastrar para extender la última sección hasta el final de la canción"
+              className="group absolute top-0 z-30 flex h-[65%] w-5 -translate-x-1/2 cursor-col-resize items-center justify-center"
+              style={{ left: `${duration > 0 ? (bands[bands.length - 1].end / duration) * 100 : 100}%` }}
+            >
+              <div className="h-full w-1 rounded-full bg-white/25 group-hover:bg-white/70" />
+            </div>
+          )}
+
+          {/* Playhead — draggable to scrub the song forward or back */}
           <div
-            className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]"
+            onPointerDown={handlePlayheadPointerDown}
+            title="Arrastrar para adelantar o atrasar la canción"
+            className="absolute top-0 bottom-0 z-40 flex w-4 -translate-x-1/2 cursor-ew-resize items-center justify-center"
             style={{ left: `${playheadPct}%` }}
-          />
+          >
+            <div className="pointer-events-none h-full w-px bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]" />
+          </div>
 
           {mainUrl && (
             <TrackWaveform

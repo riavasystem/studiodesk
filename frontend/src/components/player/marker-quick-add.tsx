@@ -18,6 +18,22 @@ export const MARKER_TYPE_OPTIONS: MarkerType[] = [
   "click",
 ];
 
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Parses "m:ss" or a plain number of seconds; returns null if unparsable. */
+function parseTime(input: string): number | null {
+  const trimmed = input.trim();
+  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+  const match = trimmed.match(/^(\d+):([0-5]?\d)$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
 interface IMarkerQuickAddProps {
   songId: number;
   position: number;
@@ -25,19 +41,23 @@ interface IMarkerQuickAddProps {
   onCreated?: (marker: ISongMarker) => void;
 }
 
-/** Small inline "create a new section" form, shared by the timeline (creates
- * a raw section at the current playhead) and the sequence editor (creates a
- * new section and appends it to the playback sequence). */
+/** Small inline "create a new section" form, shared by the timeline (defaults
+ * to the current playhead, but the time is freely editable before saving) and
+ * the sequence editor (creates a new section and appends it to the sequence). */
 export function MarkerQuickAdd({ songId, position, triggerLabel, onCreated }: IMarkerQuickAddProps) {
   const createMarker = useCreateMarker(songId);
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [type, setType] = useState<MarkerType>("cue");
+  const [timeDraft, setTimeDraft] = useState("");
 
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setTimeDraft(formatTime(position));
+          setOpen(true);
+        }}
         className="flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/50 hover:border-orange-400/30 hover:text-orange-300"
       >
         <Plus className="size-3" /> {triggerLabel}
@@ -45,8 +65,37 @@ export function MarkerQuickAdd({ songId, position, triggerLabel, onCreated }: IM
     );
   }
 
+  const save = () => {
+    const parsed = parseTime(timeDraft);
+    if (parsed === null) {
+      toast.error("Formato de tiempo inválido — usá m:ss");
+      return;
+    }
+    createMarker.mutate(
+      {
+        label: label || type,
+        marker_type: type,
+        color: MARKER_TYPE_COLORS[type],
+        position_seconds: parsed,
+      },
+      {
+        onSuccess: (marker) => onCreated?.(marker),
+        onError: () => toast.error("No se pudo crear la sección"),
+      },
+    );
+    setLabel("");
+    setOpen(false);
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      <input
+        value={timeDraft}
+        onChange={(e) => setTimeDraft(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        title="Minuto de la canción donde va la sección (m:ss)"
+        className="h-6 w-14 rounded-md border border-white/6 bg-black/30 px-2 text-center font-mono text-[11px] text-white outline-none focus:border-orange-400/40"
+      />
       <select
         value={type}
         onChange={(e) => setType(e.target.value as MarkerType)}
@@ -64,25 +113,13 @@ export function MarkerQuickAdd({ songId, position, triggerLabel, onCreated }: IM
         placeholder="Nombre..."
         value={label}
         onChange={(e) => setLabel(e.target.value)}
-        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Enter") save();
+        }}
       />
       <button
-        onClick={() => {
-          createMarker.mutate(
-            {
-              label: label || type,
-              marker_type: type,
-              color: MARKER_TYPE_COLORS[type],
-              position_seconds: position,
-            },
-            {
-              onSuccess: (marker) => onCreated?.(marker),
-              onError: () => toast.error("No se pudo crear la sección"),
-            },
-          );
-          setLabel("");
-          setOpen(false);
-        }}
+        onClick={save}
         className="rounded-md border border-orange-400/40 bg-orange-400/15 px-2 py-1 text-[10px] font-semibold text-orange-300"
       >
         Guardar

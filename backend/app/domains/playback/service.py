@@ -1,3 +1,5 @@
+import re
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,11 +10,38 @@ from app.domains.songs.service import get_song
 from app.domains.storage.service import get_audio_file
 from app.domains.tracks.models import Track
 
-AUTO_SECTION_PREFIX = "Sección "
 _REFERENCE_TRACK_TYPES = ["guide", "lead_vocal", "backing_vocal", "choir"]
 # Evenly spread across the hue wheel so no two colors (including adjacent
 # ones, which sit next to each other on the timeline) read as similar.
 _SECTION_COLORS = ["#f87171", "#fb923c", "#facc15", "#4ade80", "#22d3ee", "#60a5fa", "#a78bfa", "#f472b6"]
+# Matches only the labels/types _default_section_names + auto-detect can ever
+# produce, so a re-detect can tell "auto-generated" apart from anything the
+# user typed themselves (even if they happened to type "Verso 2" by hand,
+# that's an acceptable rare false positive — the alternative, a fragile
+# static prefix, previously mismatched entirely once labels were translated).
+_AUTO_LABEL_RE = re.compile(r"^(Intro|Final|Verso \d+|Coro \d+)$")
+
+
+def _default_section_names(count: int) -> list[tuple[str, str]]:
+    """Spanish (label, marker_type) pairs for `count` auto-detected sections:
+    Intro, alternating Verso/Coro in the middle, Final."""
+    if count <= 0:
+        return []
+    if count == 1:
+        return [("Intro", "intro")]
+
+    names: list[tuple[str, str]] = [("Intro", "intro")]
+    verse_num = 0
+    chorus_num = 0
+    for i in range(1, count - 1):
+        if (i - 1) % 2 == 0:
+            verse_num += 1
+            names.append((f"Verso {verse_num}", "verse"))
+        else:
+            chorus_num += 1
+            names.append((f"Coro {chorus_num}", "chorus"))
+    names.append(("Final", "outro"))
+    return names
 
 
 def get_marker(db: Session, marker_id: int) -> SongMarker | None:
@@ -92,24 +121,27 @@ def auto_detect_markers(db: Session, song_id: int, tracks: list[Track]) -> list[
     song = get_song(db, song_id)
     fallback_end = song.duration_seconds if song is not None else None
 
-    # Clear previously auto-generated sections so re-running doesn't duplicate them;
-    # markers the user renamed no longer start with the prefix and are left untouched.
-    db.query(SongMarker).filter(
-        SongMarker.song_id == song_id, SongMarker.label.startswith(AUTO_SECTION_PREFIX)
-    ).delete(synchronize_session=False)
+    # Clear previously auto-generated sections so re-running doesn't duplicate
+    # them; markers the user renamed to something else are left untouched.
+    existing = list_markers_by_song(db, song_id)
+    for marker in existing:
+        if _AUTO_LABEL_RE.match(marker.label):
+            db.delete(marker)
 
     # A re-detect invalidates any custom sequence the user had built (repeats/reorders
     # referencing markers that may no longer exist) — wipe it so the next read
     # regenerates a fresh chronological default from the newly detected markers.
     db.query(SectionSequenceItem).filter(SectionSequenceItem.song_id == song_id).delete(synchronize_session=False)
 
+    names = _default_section_names(len(boundaries))
     created: list[SongMarker] = []
     for i, position in enumerate(boundaries):
         end_time = boundaries[i + 1] if i + 1 < len(boundaries) else fallback_end
+        label, marker_type = names[i]
         marker = SongMarker(
             song_id=song_id,
-            label=f"{AUTO_SECTION_PREFIX}{i + 1}",
-            marker_type="cue",
+            label=label,
+            marker_type=marker_type,
             color=_SECTION_COLORS[i % len(_SECTION_COLORS)],
             position_seconds=position,
             end_time_seconds=end_time,
