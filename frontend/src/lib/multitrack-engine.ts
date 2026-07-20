@@ -1,5 +1,14 @@
 import * as Tone from "tone";
 
+export type MetronomeSoundId = "clock" | "beep" | "wood" | "hihat";
+
+export const METRONOME_SOUND_OPTIONS: { id: MetronomeSoundId; label: string }[] = [
+  { id: "clock", label: "Reloj" },
+  { id: "beep", label: "Beep" },
+  { id: "wood", label: "Madera" },
+  { id: "hihat", label: "Hi-Hat" },
+];
+
 interface ITrackNode {
   player: Tone.Player;
   gain: Tone.Gain;
@@ -44,15 +53,29 @@ export class MultitrackEngine {
   private masterMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
   private masterMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
   private reverb = new Tone.Reverb({ decay: 2.2, wet: 1 });
-  // Metallic, short-decay synth tuned for a dry clock-tick sound rather than
-  // a drum hit — closer to what users expect from a metronome click.
-  private metronomeSynth = new Tone.MetalSynth({
+  // Four selectable metronome voices, all pre-built and silently connected —
+  // switching sounds is just picking which one gets triggered per tick.
+  private metronomeSynthClock = new Tone.MetalSynth({
     envelope: { attack: 0.001, decay: 0.04, release: 0.01 },
     harmonicity: 5.1,
     modulationIndex: 16,
     resonance: 3500,
     octaves: 0.5,
   });
+  private metronomeSynthBeep = new Tone.Synth({
+    oscillator: { type: "sine" },
+    envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 },
+  });
+  private metronomeSynthWood = new Tone.MembraneSynth({
+    pitchDecay: 0.008,
+    octaves: 2,
+    envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.01 },
+  });
+  private metronomeSynthHihat = new Tone.NoiseSynth({
+    noise: { type: "white" },
+    envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 },
+  });
+  private metronomeSoundId: MetronomeSoundId = "clock";
   private metronomeGain = new Tone.Gain(1);
   private metronomeMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
   private metronomeMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
@@ -66,17 +89,41 @@ export class MultitrackEngine {
     this.limiter.connect(this.masterMeterDb);
     this.limiter.toDestination();
     this.reverb.connect(this.masterGain);
-    this.metronomeSynth.connect(this.metronomeGain);
+    this.metronomeSynthClock.connect(this.metronomeGain);
+    this.metronomeSynthBeep.connect(this.metronomeGain);
+    this.metronomeSynthWood.connect(this.metronomeGain);
+    this.metronomeSynthHihat.connect(this.metronomeGain);
     this.metronomeGain.connect(this.masterGain);
     this.metronomeGain.connect(this.metronomeMeter);
     this.metronomeGain.connect(this.metronomeMeterDb);
     void this.reverb.generate();
   }
 
+  setMetronomeSound(id: MetronomeSoundId) {
+    this.metronomeSoundId = id;
+  }
+
+  private triggerMetronomeClick(time: number) {
+    switch (this.metronomeSoundId) {
+      case "clock":
+        this.metronomeSynthClock.triggerAttackRelease("32n", time);
+        break;
+      case "beep":
+        this.metronomeSynthBeep.triggerAttackRelease("C6", "32n", time);
+        break;
+      case "wood":
+        this.metronomeSynthWood.triggerAttackRelease("G5", "32n", time);
+        break;
+      case "hihat":
+        this.metronomeSynthHihat.triggerAttackRelease("32n", time);
+        break;
+    }
+  }
+
   setMetronome(enabled: boolean) {
     if (enabled && this.metronomeEventId === null) {
       this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
-        this.metronomeSynth.triggerAttackRelease("32n", time);
+        this.triggerMetronomeClick(time);
       }, "4n");
     } else if (!enabled && this.metronomeEventId !== null) {
       Tone.getTransport().clear(this.metronomeEventId);

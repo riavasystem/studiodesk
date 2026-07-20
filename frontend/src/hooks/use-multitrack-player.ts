@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildAuthenticatedStorageUrl } from "@/lib/api-client";
-import { MultitrackEngine } from "@/lib/multitrack-engine";
+import { MultitrackEngine, type MetronomeSoundId } from "@/lib/multitrack-engine";
 import type { ITrack } from "@/hooks/use-tracks";
 
 export interface ISequenceSpan {
@@ -16,6 +16,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const sequenceRef = useRef<ISequenceSpan[]>([]);
   sequenceRef.current = sequence;
   const lastCheckedTimeRef = useRef(0);
+  // The span the transport is currently "inside" for sequence purposes. Kept
+  // as a ref (not re-derived from `time` every frame) because once time
+  // reaches a span's end it no longer satisfies `time < span.end`, so
+  // re-deriving "active" from time alone can never detect having crossed it.
+  const activeSpanIndexRef = useRef<number | null>(null);
 
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +46,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const masterVolumeRef = useRef(1);
   const preFadeVolumeRef = useRef(1);
   const [metronomeVolume, setMetronomeVolumeState] = useState(1);
+  const [metronomeSound, setMetronomeSoundState] = useState<MetronomeSoundId>("clock");
   const [metronomeLevel, setMetronomeLevel] = useState(0);
   const [metronomeDb, setMetronomeDb] = useState(-Infinity);
   const [metronomeClipping, setMetronomeClipping] = useState(false);
@@ -129,22 +135,29 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         const prevTime = lastCheckedTimeRef.current;
         lastCheckedTimeRef.current = time;
 
-        if (seq.length > 0) {
-          const activeIndex = seq.findIndex((s) => time >= s.start && time < s.end);
-          if (activeIndex !== -1) setCurrentSequenceIndex(activeIndex);
+        if (seq.length === 0) {
+          activeSpanIndexRef.current = null;
+        } else {
+          // A jump bigger than a normal frame step (rewind, loop wrap, an
+          // external seek) means `time` may no longer belong to the span we
+          // were tracking — resync by locating it fresh. Natural forward
+          // playback never needs this: it advances by a tiny amount per tick.
+          const isExternalJump = Math.abs(time - prevTime) > 0.5;
+          if (activeSpanIndexRef.current === null || isExternalJump) {
+            const idx = seq.findIndex((s) => time >= s.start && time < s.end);
+            activeSpanIndexRef.current = idx !== -1 ? idx : null;
+            setCurrentSequenceIndex(idx !== -1 ? idx : null);
+          }
 
-          const active = activeIndex !== -1 ? seq[activeIndex] : null;
-          // Crossing-detection (not a >= window) so this fires exactly once per
-          // boundary regardless of frame timing, and never re-fires while paused.
-          const crossedBoundary = active !== null && prevTime < active.end && time >= active.end;
-
-          if (crossedBoundary && engine.isPlaying) {
+          const idx = activeSpanIndexRef.current;
+          if (idx !== null && engine.isPlaying && time >= seq[idx].end) {
             const pending = pendingSequenceIndexRef.current;
-            const nextIndex = pending !== null ? pending : activeIndex + 1;
+            const nextIndex = pending !== null ? pending : idx + 1;
             if (nextIndex < seq.length) {
               const nextSpan = seq[nextIndex];
               engine.seekTo(nextSpan.start);
               lastCheckedTimeRef.current = nextSpan.start;
+              activeSpanIndexRef.current = nextIndex;
               setCurrentSequenceIndex(nextIndex);
               setPendingSequenceIndex(null);
             } else {
@@ -248,6 +261,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     } else {
       engine.seekTo(span.start);
       lastCheckedTimeRef.current = span.start;
+      activeSpanIndexRef.current = index;
       setCurrentSequenceIndex(index);
     }
   }, []);
@@ -266,6 +280,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const setMetronomeVolume = useCallback((value: number) => {
     setMetronomeVolumeState(value);
     engineRef.current?.setMetronomeVolume(value);
+  }, []);
+
+  const setMetronomeSound = useCallback((id: MetronomeSoundId) => {
+    setMetronomeSoundState(id);
+    engineRef.current?.setMetronomeSound(id);
   }, []);
 
   const FADE_SECONDS = 1.2;
@@ -314,6 +333,8 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setBaseBpm,
     metronomeVolume,
     setMetronomeVolume,
+    metronomeSound,
+    setMetronomeSound,
     metronomeLevel,
     metronomeDb,
     metronomeClipping,

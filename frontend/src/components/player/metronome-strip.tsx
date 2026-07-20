@@ -1,9 +1,11 @@
 "use client";
 
-import { Radio } from "lucide-react";
+import { useState } from "react";
+import { Radio, Settings } from "lucide-react";
 import { Fader } from "@/components/player/fader";
 import { FaderScale } from "@/components/player/fader-scale";
 import { VerticalMeter } from "@/components/player/vertical-meter";
+import { METRONOME_SOUND_OPTIONS, type MetronomeSoundId } from "@/lib/multitrack-engine";
 
 function dbLabel(db: number): string {
   if (!Number.isFinite(db) || db < -90) return "-∞";
@@ -19,9 +21,11 @@ interface IMetronomeStripProps {
   isOn: boolean;
   isPlaying: boolean;
   tempo: number;
+  sound: MetronomeSoundId;
   onToggleOn: () => void;
   onVolumeChange: (value: number) => void;
   onTempoChange: (value: number) => void;
+  onSoundChange: (id: MetronomeSoundId) => void;
 }
 
 export function MetronomeStrip({
@@ -33,10 +37,14 @@ export function MetronomeStrip({
   isOn,
   isPlaying,
   tempo,
+  sound,
   onToggleOn,
   onVolumeChange,
   onTempoChange,
+  onSoundChange,
 }: IMetronomeStripProps) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div
       className={`flex min-w-20 flex-1 basis-24 flex-col items-center gap-2 rounded-lg border pt-0 pb-2.5 transition-colors ${
@@ -69,6 +77,15 @@ export function MetronomeStrip({
         >
           M
         </button>
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          title="Configuración del metrónomo"
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors ${
+            expanded ? "text-white/80" : "text-white/30 hover:text-white/60"
+          }`}
+        >
+          <Settings className="size-3" />
+        </button>
       </div>
 
       <div className="flex h-36 w-full items-stretch justify-center gap-1 px-1.5">
@@ -89,28 +106,49 @@ export function MetronomeStrip({
         Click
       </span>
 
-      <div className="flex w-full flex-col items-center gap-1 px-2 pt-1">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onTempoChange(Math.max(0.5, +(tempo - 0.01).toFixed(2)))}
-            title="Más lento"
-            className="flex size-4 items-center justify-center rounded border border-white/12 text-[10px] text-white/50 hover:text-white"
-          >
-            −
-          </button>
-          <span className="w-10 text-center font-mono text-[10px] font-bold text-white/85 tabular-nums">
-            {Math.round(tempo * 100)}%
-          </span>
-          <button
-            onClick={() => onTempoChange(Math.min(1.5, +(tempo + 0.01).toFixed(2)))}
-            title="Más rápido"
-            className="flex size-4 items-center justify-center rounded border border-white/12 text-[10px] text-white/50 hover:text-white"
-          >
-            +
-          </button>
+      {expanded && (
+        <div className="flex w-full flex-col items-center gap-2 px-2 pt-1">
+          <div className="flex w-full flex-col items-center gap-1 rounded-md border border-white/6 bg-black/20 p-1.5">
+            <span className="font-mono text-[8px] tracking-widest text-white/30 uppercase">BPM / Velocidad</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onTempoChange(Math.max(0.5, +(tempo - 0.01).toFixed(2)))}
+                title="Más lento"
+                className="flex size-4 items-center justify-center rounded border border-white/12 text-[10px] text-white/50 hover:text-white"
+              >
+                −
+              </button>
+              <span className="w-10 text-center font-mono text-[10px] font-bold text-white/85 tabular-nums">
+                {Math.round(tempo * 100)}%
+              </span>
+              <button
+                onClick={() => onTempoChange(Math.min(1.5, +(tempo + 0.01).toFixed(2)))}
+                title="Más rápido"
+                className="flex size-4 items-center justify-center rounded border border-white/12 text-[10px] text-white/50 hover:text-white"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="flex w-full flex-col gap-1 rounded-md border border-white/6 bg-black/20 p-1.5">
+            <span className="text-center font-mono text-[8px] tracking-widest text-white/30 uppercase">Sonido</span>
+            {METRONOME_SOUND_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                onClick={() => onSoundChange(option.id)}
+                className={`w-full rounded border py-0.5 font-mono text-[9px] font-semibold transition-all ${
+                  sound === option.id
+                    ? "border-emerald-400 bg-emerald-400/20 text-emerald-300"
+                    : "border-white/10 text-white/40 hover:text-white/70"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <span className="font-mono text-[8px] tracking-widest text-white/30 uppercase">Tempo</span>
-      </div>
+      )}
     </div>
   );
 }

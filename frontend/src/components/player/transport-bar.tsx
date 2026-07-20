@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ListMusic, Loader2, Menu, MicVocal, Pause, Play, Repeat, Square, SkipBack } from "lucide-react";
+import { AlertTriangle, ListMusic, Loader2, Menu, Pause, Pencil, Play, Repeat, Square, SkipBack } from "lucide-react";
 import { toast } from "sonner";
 
-export type PlayerPanel = "mixer" | "lyrics" | "sequence";
+export type PlayerPanel = "mixer" | "sequence";
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -58,6 +58,8 @@ interface ITransportBarProps {
   totalTracks: number;
   panel: PlayerPanel;
   onPanelChange: (panel: PlayerPanel) => void;
+  editMode: boolean;
+  onToggleEditMode: () => void;
   onPlayPause: () => void;
   onStop: () => void;
   onRewind: () => void;
@@ -80,6 +82,8 @@ export function TransportBar({
   totalTracks,
   panel,
   onPanelChange,
+  editMode,
+  onToggleEditMode,
   onPlayPause,
   onStop,
   onRewind,
@@ -140,23 +144,17 @@ export function TransportBar({
         <div className="min-w-0 flex-1" />
 
         <button
-          onClick={() => onPanelChange("mixer")}
-          title="Editar mezcla"
-          className={`rounded-xl border px-4 py-3 font-mono text-xs font-bold tracking-widest uppercase transition-colors ${
-            panel === "mixer"
+          onClick={onToggleEditMode}
+          title="Editar la estructura de la canción: insertar, quitar y mover secciones"
+          className={`flex items-center gap-1.5 rounded-xl border px-4 py-3 font-mono text-xs font-bold tracking-widest uppercase transition-colors ${
+            editMode
               ? "border-orange-400/50 bg-orange-400/15 text-orange-300"
               : "border-white/8 bg-black/30 text-white/60 hover:border-white/20 hover:text-white"
           }`}
         >
+          <Pencil className="size-3.5" />
           Editar
         </button>
-        <TransportButton
-          onClick={() => onPanelChange("lyrics")}
-          title="Letras y acordes"
-          active={panel === "lyrics"}
-        >
-          <MicVocal className="size-5" />
-        </TransportButton>
         <TransportButton
           onClick={() => onPanelChange("sequence")}
           title="Secuencia de reproducción"

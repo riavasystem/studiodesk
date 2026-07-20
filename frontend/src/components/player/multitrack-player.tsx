@@ -9,11 +9,9 @@ import { BottomBar } from "@/components/player/bottom-bar";
 import { ChannelStrip } from "@/components/player/channel-strip";
 import { MetronomeStrip } from "@/components/player/metronome-strip";
 import { MasterStrip } from "@/components/player/master-strip";
-import { LyricsPanel } from "@/components/player/lyrics-panel";
 import { useMultitrackPlayer, type ISequenceSpan } from "@/hooks/use-multitrack-player";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSequence } from "@/hooks/use-sequence";
-import { useLyrics } from "@/hooks/use-lyrics";
 import { useUpdateSong } from "@/hooks/use-songs";
 import { useQueueStore } from "@/store/queue-store";
 import type { ITrack, TrackType } from "@/hooks/use-tracks";
@@ -45,7 +43,6 @@ interface IMultitrackPlayerProps {
 export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultitrackPlayerProps) {
   const { data: markers } = useMarkers(song.id);
   const { data: sequenceItems } = useSequence(song.id);
-  const { data: lyrics } = useLyrics(song.id);
   const updateSong = useUpdateSong(song.id);
   const setActiveSong = useQueueStore((s) => s.setActiveSong);
 
@@ -69,6 +66,7 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
 
   const [panel, setPanel] = useState<PlayerPanel>("mixer");
   const [armedTracks, setArmedTracks] = useState<Set<number>>(new Set());
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     setActiveSong(song.id);
@@ -184,6 +182,8 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         totalTracks={player.totalTracks}
         panel={panel}
         onPanelChange={setPanel}
+        editMode={editMode}
+        onToggleEditMode={() => setEditMode((v) => !v)}
         onPlayPause={player.isPlaying ? player.pause : player.play}
         onStop={player.stop}
         onRewind={() => player.seekTo(0)}
@@ -205,11 +205,10 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         onSeek={player.seekTo}
         onSeekToSequenceIndex={player.seekToSequenceIndex}
         onSetLoop={player.setLoop}
+        editMode={editMode}
       />
 
-      {panel === "lyrics" ? (
-        <LyricsPanel lines={lyrics ?? []} currentTime={player.currentTime} onSeek={player.seekTo} />
-      ) : panel === "sequence" ? (
+      {panel === "sequence" ? (
         <SequenceEditor
           songId={song.id}
           markers={markers}
@@ -229,9 +228,11 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
               isOn={player.metronomeOn}
               isPlaying={player.isPlaying}
               tempo={player.tempo}
+              sound={player.metronomeSound}
               onToggleOn={() => player.setMetronomeOn(!player.metronomeOn)}
               onVolumeChange={player.setMetronomeVolume}
               onTempoChange={player.setTempo}
+              onSoundChange={player.setMetronomeSound}
             />
 
             {tracks.map((track, i) => {

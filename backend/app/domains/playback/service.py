@@ -179,7 +179,16 @@ def append_sequence_item(db: Session, song_id: int, marker_id: int, order_index:
     item = SectionSequenceItem(song_id=song_id, marker_id=marker_id, order_index=target_index)
     db.add(item)
     db.flush()
-    _renumber(db, song_id)
+
+    # Splice the new item into the existing order explicitly instead of
+    # re-sorting by (order_index, id): a tie on order_index would fall back to
+    # primary key and put pre-existing rows ahead of the one just inserted,
+    # silently pushing "insert after X" toward the end of the sequence.
+    ordered_ids = [existing.id for existing in current]
+    ordered_ids.insert(target_index, item.id)
+    for index, item_id in enumerate(ordered_ids):
+        db.get(SectionSequenceItem, item_id).order_index = index
+
     db.commit()
     db.refresh(item)
     return item

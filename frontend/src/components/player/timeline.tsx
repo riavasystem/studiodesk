@@ -33,6 +33,7 @@ interface ITimelineProps {
   onSeek: (seconds: number) => void;
   onSeekToSequenceIndex: (index: number) => void;
   onSetLoop: (value: boolean, start?: number, end?: number) => void;
+  editMode: boolean;
 }
 
 export function Timeline({
@@ -48,6 +49,7 @@ export function Timeline({
   onSeek,
   onSeekToSequenceIndex,
   onSetLoop,
+  editMode,
 }: ITimelineProps) {
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
@@ -233,31 +235,35 @@ export function Timeline({
                       {isPending && <Clock3 className="size-2.5 shrink-0" />}
                     </span>
 
-                    <button
-                      type="button"
-                      title="Eliminar esta sección"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteMarker.mutate(marker.id, {
-                          onError: () => toast.error("No se pudo eliminar la sección"),
-                        });
-                      }}
-                      className="absolute bottom-1 left-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-90"
-                    >
-                      <Minus className="size-2.5" />
-                    </button>
+                    {editMode && (
+                      <>
+                        <button
+                          type="button"
+                          title="Eliminar esta sección"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteMarker.mutate(marker.id, {
+                              onError: () => toast.error("No se pudo eliminar la sección"),
+                            });
+                          }}
+                          className="absolute bottom-1 left-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-white opacity-90"
+                        >
+                          <Minus className="size-2.5" />
+                        </button>
 
-                    <button
-                      type="button"
-                      title="Agregar una sección después de esta"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAddDialogForMarkerId(marker.id);
-                      }}
-                      className="absolute right-1 bottom-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white opacity-0 group-hover:opacity-90"
-                    >
-                      <Plus className="size-2.5" />
-                    </button>
+                        <button
+                          type="button"
+                          title="Agregar una sección después de esta"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAddDialogForMarkerId(marker.id);
+                          }}
+                          className="absolute right-1 bottom-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white opacity-90"
+                        >
+                          <Plus className="size-2.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 );
               })}
@@ -269,19 +275,21 @@ export function Timeline({
           )}
 
           {/* Draggable handles between adjacent sections, so their shared
-              boundary can be resized without touching the original audio. */}
-          {bands.slice(0, -1).map((band, index) => {
-            const leftPct = duration > 0 ? (band.end / duration) * 100 : 0;
-            return (
-              <div
-                key={`boundary-${band.marker.id}`}
-                onPointerDown={handleBoundaryPointerDown(index)}
-                title="Arrastrar para mover el límite entre secciones"
-                className="absolute top-0 bottom-0 z-30 w-2 -translate-x-1/2 cursor-col-resize hover:bg-white/30"
-                style={{ left: `${leftPct}%` }}
-              />
-            );
-          })}
+              boundary can be resized without touching the original audio.
+              Only shown in edit mode to avoid stray edits during playback. */}
+          {editMode &&
+            bands.slice(0, -1).map((band, index) => {
+              const leftPct = duration > 0 ? (band.end / duration) * 100 : 0;
+              return (
+                <div
+                  key={`boundary-${band.marker.id}`}
+                  onPointerDown={handleBoundaryPointerDown(index)}
+                  title="Arrastrar para mover el límite entre secciones"
+                  className="absolute top-0 bottom-0 z-30 w-2 -translate-x-1/2 cursor-col-resize hover:bg-white/30"
+                  style={{ left: `${leftPct}%` }}
+                />
+              );
+            })}
 
           {/* Playhead */}
           <div
