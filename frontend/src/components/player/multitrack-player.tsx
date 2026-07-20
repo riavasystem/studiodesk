@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TransportBar, type PlayerPanel } from "@/components/player/transport-bar";
 import { SongCarousel } from "@/components/player/song-carousel";
 import { Timeline } from "@/components/player/timeline";
@@ -11,6 +12,7 @@ import { MetronomeStrip } from "@/components/player/metronome-strip";
 import { PadStrip } from "@/components/player/pad-strip";
 import { GuideStrip } from "@/components/player/guide-strip";
 import { MasterStrip } from "@/components/player/master-strip";
+import { SavePlaylistCard } from "@/components/player/save-playlist-card";
 import { useMultitrackPlayer, type ISequenceSpan } from "@/hooks/use-multitrack-player";
 import { normalizeKeyName, semitoneShiftBetweenKeys } from "@/lib/music-keys";
 import { useMarkers } from "@/hooks/use-markers";
@@ -48,6 +50,10 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
   const { data: sequenceItems } = useSequence(song.id);
   const updateSong = useUpdateSong(song.id);
   const setActiveSong = useQueueStore((s) => s.setActiveSong);
+  const queue = useQueueStore((s) => s.queue);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const sequenceSpans: ISequenceSpan[] = useMemo(() => {
     const markerById = new Map((markers ?? []).map((m) => [m.id, m]));
@@ -71,8 +77,33 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
   const [panel, setPanel] = useState<PlayerPanel>("mixer");
   const [armedTracks, setArmedTracks] = useState<Set<number>>(new Set());
   const [editMode, setEditMode] = useState(false);
+  const [showSavePlaylistPrompt, setShowSavePlaylistPrompt] = useState(false);
   const originalKey = normalizeKeyName(song.musical_key);
   const [playbackKey, setPlaybackKey] = useState(originalKey);
+
+  const queuePosition = queue.indexOf(song.id);
+  const nextSongId = queuePosition !== -1 ? queue[queuePosition + 1] : undefined;
+
+  // A song opened with ?autoplay=1 (queue auto-advance landed here) starts
+  // itself once its tracks are actually ready, then drops the query param so
+  // a manual refresh doesn't replay it.
+  useEffect(() => {
+    if (searchParams.get("autoplay") === "1" && player.isReady) {
+      player.play();
+      router.replace(pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player.isReady, searchParams]);
+
+  useEffect(() => {
+    if (!player.sequenceEnded) return;
+    if (nextSongId !== undefined) {
+      router.push(`/dashboard/songs/${nextSongId}?autoplay=1`);
+    } else if (queue.length > 1) {
+      setShowSavePlaylistPrompt(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player.sequenceEnded]);
 
   useEffect(() => {
     setActiveSong(song.id);
@@ -343,6 +374,14 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         masterVolume={player.masterVolume}
         onMasterVolumeChange={player.setMasterVolume}
       />
+
+      {showSavePlaylistPrompt && (
+        <SavePlaylistCard
+          songs={queue.map((id) => songs.find((s) => s.id === id)).filter((s): s is ISong => s !== undefined)}
+          onDismiss={() => setShowSavePlaylistPrompt(false)}
+          onSaved={() => setShowSavePlaylistPrompt(false)}
+        />
+      )}
     </div>
   );
 }

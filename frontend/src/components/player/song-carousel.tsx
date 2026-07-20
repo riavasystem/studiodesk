@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Music2, Play, Plus } from "lucide-react";
+import { Play, Plus } from "lucide-react";
 import { resolveCoverImageUrl } from "@/lib/api-client";
+import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useQueueStore } from "@/store/queue-store";
 import { AddToQueueDialog } from "@/components/player/add-to-queue-dialog";
 import type { ISong } from "@/hooks/use-songs";
@@ -48,7 +49,7 @@ export function SongCarousel({ activeSongId, allSongs }: ISongCarouselProps) {
                   className="absolute inset-0 size-full object-contain"
                 />
               ) : (
-                <Music2 className="size-10 text-white/20" strokeWidth={1.5} />
+                <DefaultSongCover seed={s.id} />
               )}
               {active && (
                 <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-orange-400 px-2 py-1 text-[10px] font-bold text-black uppercase">

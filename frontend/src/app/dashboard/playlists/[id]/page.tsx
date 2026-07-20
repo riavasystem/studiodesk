@@ -2,17 +2,21 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Play, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAddSongToPlaylist, usePlaylistSongs, useRemoveSongFromPlaylist } from "@/hooks/use-playlists";
 import { useSongs } from "@/hooks/use-songs";
+import { useQueueStore } from "@/store/queue-store";
 
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const playlistId = Number(id);
+  const router = useRouter();
+  const setQueue = useQueueStore((s) => s.setQueue);
 
   const { data: items, isLoading } = usePlaylistSongs(playlistId);
   const { data: songs } = useSongs();
@@ -22,6 +26,14 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
   const songsById = new Map(songs?.map((song) => [song.id, song]));
   const availableSongs = songs?.filter((song) => !items?.some((item) => item.song_id === song.id));
+
+  const orderedSongIds = [...(items ?? [])].sort((a, b) => a.order_index - b.order_index).map((i) => i.song_id);
+
+  const openInPlayer = () => {
+    if (orderedSongIds.length === 0) return;
+    setQueue(orderedSongIds);
+    router.push(`/dashboard/songs/${orderedSongIds[0]}?autoplay=1`);
+  };
 
   const handleAdd = () => {
     if (!selectedSongId) return;
@@ -36,15 +48,20 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
-      <div>
-        <Link
-          href="/dashboard/playlists"
-          className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white/80"
-        >
-          <ArrowLeft className="size-4" /> Playlists
-        </Link>
-        <p className="mt-4 font-mono text-xs tracking-[0.3em] text-orange-400 uppercase">Playlist</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Repertorio</h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Link
+            href="/dashboard/playlists"
+            className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white/80"
+          >
+            <ArrowLeft className="size-4" /> Playlists
+          </Link>
+          <p className="mt-4 font-mono text-xs tracking-[0.3em] text-orange-400 uppercase">Playlist</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Repertorio</h1>
+        </div>
+        <Button onClick={openInPlayer} disabled={orderedSongIds.length === 0} className="mt-1 shrink-0">
+          <Play className="size-4" /> Abrir en el reproductor
+        </Button>
       </div>
 
       <Card className="border-white/10">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ListMusic, Disc3, Tag, Music2, Star, Plus, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useAuthStore } from "@/lib/auth-store";
 import { useSongs } from "@/hooks/use-songs";
 import { usePlaylists } from "@/hooks/use-playlists";
@@ -90,6 +91,35 @@ export default function DashboardPage() {
         <StatCard href="/dashboard/categories" label="Categorías" count={categories?.length} icon={Tag} />
       </div>
 
+      {playlists && playlists.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListMusic className="size-4 text-orange-400" />
+              <h2 className="text-sm font-semibold tracking-wide text-white/70 uppercase">
+                Abrir un proyecto guardado
+              </h2>
+            </div>
+            <Link href="/dashboard/playlists" className="text-xs text-orange-400 hover:text-orange-300">
+              Ver todas
+            </Link>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {playlists.slice(0, 6).map((playlist) => (
+              <Link
+                key={playlist.id}
+                href={`/dashboard/playlists/${playlist.id}`}
+                className="flex w-44 shrink-0 flex-col gap-1 rounded-xl border border-white/8 bg-linear-to-b from-white/5 to-transparent p-3 transition-colors hover:border-orange-400/30"
+              >
+                <ListMusic className="size-4 text-white/30" />
+                <p className="mt-1 truncate text-sm font-medium text-white">{playlist.name}</p>
+                <p className="text-xs text-orange-400">Abrir en el reproductor →</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {favorites.length > 0 && (
         <div>
           <div className="mb-3 flex items-center gap-2">
@@ -114,7 +144,7 @@ export default function DashboardPage() {
                       className="absolute inset-0 size-full object-contain"
                     />
                   ) : (
-                    <Music2 className="size-6 text-white/25" strokeWidth={1.5} />
+                    <DefaultSongCover seed={song.id} />
                   )}
                 </div>
                 <p className="truncate text-xs font-medium text-white/80 group-hover:text-orange-400">
@@ -151,7 +181,7 @@ export default function DashboardPage() {
                     href={`/dashboard/songs/${song.id}`}
                     className="group flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-lg transition-colors hover:bg-white/5"
                   >
-                    <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/8 bg-white/4">
+                    <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/8 bg-white/4">
                       {song.cover_image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -160,7 +190,7 @@ export default function DashboardPage() {
                           className="size-full object-contain"
                         />
                       ) : (
-                        <Music2 className="size-4 text-white/25" strokeWidth={1.5} />
+                        <DefaultSongCover seed={song.id} />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">

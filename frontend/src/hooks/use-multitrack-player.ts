@@ -67,6 +67,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [padClipping, setPadClipping] = useState(false);
   const [currentSequenceIndex, setCurrentSequenceIndex] = useState<number | null>(null);
   const [pendingSequenceIndex, setPendingSequenceIndex] = useState<number | null>(null);
+  // True once the whole sequence has finished playing through — lets the
+  // caller auto-advance to the next song in the queue, or offer to save the
+  // queue as a playlist once there's nothing left to advance to.
+  const [sequenceEnded, setSequenceEnded] = useState(false);
   const pendingSequenceIndexRef = useRef<number | null>(null);
   pendingSequenceIndexRef.current = pendingSequenceIndex;
 
@@ -75,8 +79,8 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   // extra infra/cost, in line with "no paid AI services in v1".
   const [guideOn, setGuideOnState] = useState(false);
   const guideOnRef = useRef(false);
-  const [guideVolume, setGuideVolumeState] = useState(0.8);
-  const guideVolumeRef = useRef(0.8);
+  const [guideVolume, setGuideVolumeState] = useState(1);
+  const guideVolumeRef = useRef(1);
   const wasPlayingRef = useRef(false);
   const guideVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
@@ -131,6 +135,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setLoadError(null);
     setLoadedTracks(0);
     setTotalTracks(tracks.length);
+    setSequenceEnded(false);
 
     const urls = new Map(tracks.map((t) => [t.id, buildAuthenticatedStorageUrl(t.file_path)]));
     setTrackUrls(urls);
@@ -251,6 +256,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
                 setPendingSequenceIndex(null);
               } else {
                 engine.pause();
+                setSequenceEnded(true);
               }
             }
           }
@@ -303,13 +309,20 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     };
   }, []);
 
-  const play = useCallback(() => engineRef.current?.play(), []);
+  const play = useCallback(() => {
+    setSequenceEnded(false);
+    engineRef.current?.play();
+  }, []);
   const pause = useCallback(() => engineRef.current?.pause(), []);
   const stop = useCallback(() => {
     engineRef.current?.stop();
     setCurrentTime(0);
+    setSequenceEnded(false);
   }, []);
-  const seekTo = useCallback((seconds: number) => engineRef.current?.seekTo(seconds), []);
+  const seekTo = useCallback((seconds: number) => {
+    setSequenceEnded(false);
+    engineRef.current?.seekTo(seconds);
+  }, []);
 
   const setLoop = useCallback((value: boolean, start?: number, end?: number) => {
     setLoopState(value);
@@ -367,6 +380,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     const engine = engineRef.current;
     const span = sequenceRef.current[index];
     if (!engine || !span) return;
+    setSequenceEnded(false);
     if (engine.isPlaying) {
       // Deferred: the currently-playing section keeps going until it naturally
       // ends (handled in the tick loop above), then jumps here.
@@ -499,6 +513,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setGuideVolume,
     currentSequenceIndex,
     pendingSequenceIndex,
+    sequenceEnded,
     seekToSequenceIndex,
     cancelPendingSequenceIndex,
     play,

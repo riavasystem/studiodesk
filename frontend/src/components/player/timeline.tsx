@@ -450,62 +450,62 @@ export function Timeline({
               button. Also carries the always-on Click/Pad infinity toggles,
               since those loop for the whole song regardless of section. */}
           {editMode && bands.length > 0 && (
-            <div className="absolute top-0 left-0 z-30 flex h-full w-9 shrink-0 flex-col items-center justify-between border-r border-dashed border-white/25 bg-white/10 py-1">
+            <div className="absolute top-0 left-0 z-30 flex h-full w-14 shrink-0 flex-col items-center justify-between border-r-2 border-dashed border-white/40 bg-neutral-500/25 py-1.5 backdrop-blur-[1px]">
               <button
                 type="button"
                 title="Agregar una sección antes de la Intro"
                 onClick={() => setAddDialogTarget({ kind: "start" })}
-                className="flex size-5 items-center justify-center rounded-full bg-white/20 text-white/80 hover:bg-white/30"
+                className="flex size-9 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white shadow-[0_0_10px_rgba(255,255,255,0.25)] hover:bg-white/40"
               >
-                <Plus className="size-3" />
+                <Plus className="size-5" />
               </button>
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-center gap-1.5">
                 <button
                   type="button"
                   onClick={onToggleMetronome}
                   title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                  className={`flex size-5 items-center justify-center rounded-full ${metronomeOn ? "bg-emerald-400/30 text-emerald-300" : "text-white/30 hover:text-white/60"}`}
+                  className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                 >
-                  <InfinityIcon className="size-3" />
+                  <InfinityIcon className="size-4" />
                 </button>
                 <button
                   type="button"
                   onClick={onTogglePad}
                   title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                  className={`flex size-5 items-center justify-center rounded-full ${padOn ? "bg-sky-400/30 text-sky-300" : "text-white/30 hover:text-white/60"}`}
+                  className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                 >
-                  <Waves className="size-3" />
+                  <Waves className="size-4" />
                 </button>
               </div>
             </div>
           )}
 
           {editMode && bands.length > 0 && (
-            <div className="absolute top-0 right-0 z-30 flex h-full w-9 shrink-0 flex-col items-center justify-between border-l border-dashed border-white/25 bg-white/10 py-1">
+            <div className="absolute top-0 right-0 z-30 flex h-full w-14 shrink-0 flex-col items-center justify-between border-l-2 border-dashed border-white/40 bg-neutral-500/25 py-1.5 backdrop-blur-[1px]">
               <button
                 type="button"
                 title="Agregar una sección después del Final"
                 onClick={() => setAddDialogTarget({ kind: "end" })}
-                className="flex size-5 items-center justify-center rounded-full bg-white/20 text-white/80 hover:bg-white/30"
+                className="flex size-9 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white shadow-[0_0_10px_rgba(255,255,255,0.25)] hover:bg-white/40"
               >
-                <Plus className="size-3" />
+                <Plus className="size-5" />
               </button>
-              <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-col items-center gap-1.5">
                 <button
                   type="button"
                   onClick={onToggleMetronome}
                   title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                  className={`flex size-5 items-center justify-center rounded-full ${metronomeOn ? "bg-emerald-400/30 text-emerald-300" : "text-white/30 hover:text-white/60"}`}
+                  className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                 >
-                  <InfinityIcon className="size-3" />
+                  <InfinityIcon className="size-4" />
                 </button>
                 <button
                   type="button"
                   onClick={onTogglePad}
                   title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                  className={`flex size-5 items-center justify-center rounded-full ${padOn ? "bg-sky-400/30 text-sky-300" : "text-white/30 hover:text-white/60"}`}
+                  className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                 >
-                  <Waves className="size-3" />
+                  <Waves className="size-4" />
                 </button>
               </div>
             </div>

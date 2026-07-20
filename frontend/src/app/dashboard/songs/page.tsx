@@ -9,6 +9,7 @@ import { useDeleteSong, useSongs } from "@/hooks/use-songs";
 import { ImportZipDialog } from "@/components/songs/import-zip-dialog";
 import { UploadSongDialog } from "@/components/songs/upload-song-dialog";
 import { resolveCoverImageUrl } from "@/lib/api-client";
+import { DefaultSongCover } from "@/components/ui/default-song-cover";
 
 const COVER_GRADIENTS = [
   "from-orange-500/30 via-orange-500/10 to-transparent",
@@ -77,7 +78,7 @@ export default function SongsPage() {
                     className="absolute inset-0 size-full object-contain"
                   />
                 ) : (
-                  <Music2 className="size-8 text-white/30" strokeWidth={1.5} />
+                  <DefaultSongCover seed={song.id} />
                 )}
                 {song.musical_key && (
                   <span className="absolute top-2.5 right-2.5 rounded-full border border-white/15 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white/70 backdrop-blur">

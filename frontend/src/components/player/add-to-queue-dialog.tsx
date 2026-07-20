@@ -1,8 +1,8 @@
 "use client";
 
-import { Music2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { resolveCoverImageUrl } from "@/lib/api-client";
+import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useQueueStore } from "@/store/queue-store";
 import type { ISong } from "@/hooks/use-songs";
 
@@ -34,7 +34,7 @@ export function AddToQueueDialog({ open, onOpenChange, allSongs, queue }: IAddTo
               onClick={() => addToQueue(s.id)}
               className="flex items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
             >
-              <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/8">
+              <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/8">
                 {s.cover_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -43,7 +43,7 @@ export function AddToQueueDialog({ open, onOpenChange, allSongs, queue }: IAddTo
                     className="size-full object-cover"
                   />
                 ) : (
-                  <Music2 className="size-4 text-white/30" strokeWidth={1.5} />
+                  <DefaultSongCover seed={s.id} />
                 )}
               </div>
               <div className="min-w-0">

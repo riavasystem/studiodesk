@@ -3,12 +3,13 @@
 import { use, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Music2, Pencil, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MultitrackPlayerLoader } from "@/components/player/multitrack-player-loader";
 import { EditSongDialog } from "@/components/songs/edit-song-dialog";
 import { resolveCoverImageUrl } from "@/lib/api-client";
+import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useSong, useSongs } from "@/hooks/use-songs";
 import {
   useCreateTrack,
@@ -140,7 +141,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
       {song && (
         <div className="flex items-center gap-4">
-          <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/8 bg-white/4">
+          <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/8 bg-white/4">
             {song.cover_image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -149,7 +150,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
                 className="size-full object-contain"
               />
             ) : (
-              <Music2 className="size-6 text-white/25" strokeWidth={1.5} />
+              <DefaultSongCover seed={song.id} />
             )}
           </div>
           <div className="min-w-0">
