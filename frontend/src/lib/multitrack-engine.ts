@@ -44,8 +44,14 @@ export class MultitrackEngine {
   private masterMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
   private masterMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
   private reverb = new Tone.Reverb({ decay: 2.2, wet: 1 });
-  private metronomeSynth = new Tone.MembraneSynth({
-    envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.01 },
+  // Metallic, short-decay synth tuned for a dry clock-tick sound rather than
+  // a drum hit — closer to what users expect from a metronome click.
+  private metronomeSynth = new Tone.MetalSynth({
+    envelope: { attack: 0.001, decay: 0.04, release: 0.01 },
+    harmonicity: 5.1,
+    modulationIndex: 16,
+    resonance: 3500,
+    octaves: 0.5,
   });
   private metronomeGain = new Tone.Gain(1);
   private metronomeMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
@@ -70,7 +76,7 @@ export class MultitrackEngine {
   setMetronome(enabled: boolean) {
     if (enabled && this.metronomeEventId === null) {
       this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
-        this.metronomeSynth.triggerAttackRelease("C5", "16n", time);
+        this.metronomeSynth.triggerAttackRelease("32n", time);
       }, "4n");
     } else if (!enabled && this.metronomeEventId !== null) {
       Tone.getTransport().clear(this.metronomeEventId);

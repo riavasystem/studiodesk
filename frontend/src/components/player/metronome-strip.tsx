@@ -54,13 +54,20 @@ export function MetronomeStrip({
 
       <div className="flex w-full items-center gap-1 px-2">
         <button
+          title="Solo (no disponible para el metrónomo)"
+          disabled
+          className="flex h-5 flex-1 items-center justify-center rounded border border-white/15 font-mono text-[9px] font-bold text-white/25"
+        >
+          S
+        </button>
+        <button
           onClick={onToggleOn}
-          title="Activar/desactivar metrónomo"
+          title="Mute"
           className={`flex h-5 flex-1 items-center justify-center rounded border font-mono text-[9px] font-bold transition-all ${
-            isOn ? "border-emerald-400 bg-emerald-400 text-black" : "border-white/15 text-white/40 hover:text-white/70"
+            !isOn ? "border-red-500 bg-red-500 text-white" : "border-white/15 text-white/40 hover:text-white/70"
           }`}
         >
-          {isOn ? "ON" : "OFF"}
+          M
         </button>
       </div>
 
