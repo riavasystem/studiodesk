@@ -96,8 +96,6 @@ function TransportButton({
 }
 
 interface ITransportBarProps {
-  title: string;
-  artist: string;
   bpm: number | null;
   onBpmChange: (value: number) => void;
   timeSignature: string;
@@ -127,8 +125,6 @@ interface ITransportBarProps {
 }
 
 export function TransportBar({
-  title,
-  artist,
   bpm,
   onBpmChange,
   timeSignature,
@@ -259,11 +255,6 @@ export function TransportBar({
         <TransportButton onClick={() => toast("No disponible en esta versión")} title="Menú">
           <Menu className="size-7" />
         </TransportButton>
-      </div>
-
-      <div className="min-w-0">
-        <p className="truncate text-base font-semibold text-white">{title}</p>
-        <p className="truncate text-xs text-white/45">{artist}</p>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import type { ITrack } from "@/hooks/use-tracks";
 export interface ISequenceSpan {
   itemId: number;
   markerId: number;
+  label: string;
   start: number;
   end: number;
 }
@@ -68,6 +69,48 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [pendingSequenceIndex, setPendingSequenceIndex] = useState<number | null>(null);
   const pendingSequenceIndexRef = useRef<number | null>(null);
   pendingSequenceIndexRef.current = pendingSequenceIndex;
+
+  // Voice guide (GUIA): announces each section's name as it starts, using
+  // the browser's built-in speech synthesis — no server-side TTS, so no
+  // extra infra/cost, in line with "no paid AI services in v1".
+  const [guideOn, setGuideOnState] = useState(false);
+  const guideOnRef = useRef(false);
+  const [guideVolume, setGuideVolumeState] = useState(0.8);
+  const guideVolumeRef = useRef(0.8);
+  const wasPlayingRef = useRef(false);
+  const guideVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const pickVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+      const spanish = voices.filter((v) => v.lang.toLowerCase().startsWith("es"));
+      // Voice names aren't consistently gendered across browsers/OSes, so we
+      // match against known female Spanish voice names first; anything not
+      // matched falls back to the first Spanish voice, then any voice at all.
+      const femaleNames = ["mónica", "monica", "paulina", "helena", "lucia", "lucía", "elena", "laura", "sabina", "female"];
+      const female = spanish.find((v) => femaleNames.some((name) => v.name.toLowerCase().includes(name)));
+      guideVoiceRef.current = female ?? spanish[0] ?? voices[0] ?? null;
+    };
+    pickVoice();
+    window.speechSynthesis.addEventListener("voiceschanged", pickVoice);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", pickVoice);
+  }, []);
+
+  const announceSection = useCallback((label: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(label);
+    utterance.lang = "es-ES";
+    utterance.rate = 1.05;
+    // A slightly higher pitch biases toward a lighter/feminine timbre when no
+    // explicit Spanish female voice was found on this browser/OS.
+    utterance.pitch = 1.15;
+    utterance.volume = guideVolumeRef.current;
+    if (guideVoiceRef.current) utterance.voice = guideVoiceRef.current;
+    window.speechSynthesis.speak(utterance);
+  }, []);
 
   if (!engineRef.current) engineRef.current = new MultitrackEngine();
 
@@ -154,6 +197,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         const seq = sequenceRef.current;
         const prevTime = lastCheckedTimeRef.current;
         lastCheckedTimeRef.current = time;
+        const previousActiveItemId = activeItemIdRef.current;
 
         if (seq.length === 0) {
           activeItemIdRef.current = null;
@@ -210,6 +254,23 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
               }
             }
           }
+        }
+
+        // Voice guide: announce a section's name once, right as it becomes
+        // active — either because playback just crossed into it, or because
+        // Play was just pressed on an already-resolved span (a plain itemId
+        // comparison would miss that second case, since nothing "changed").
+        const nowPlaying = engine.isPlaying;
+        const justStartedPlaying = nowPlaying && !wasPlayingRef.current;
+        wasPlayingRef.current = nowPlaying;
+        if (
+          nowPlaying &&
+          guideOnRef.current &&
+          activeItemIdRef.current !== null &&
+          (activeItemIdRef.current !== previousActiveItemId || justStartedPlaying)
+        ) {
+          const activeSpan = seq.find((s) => s.itemId === activeItemIdRef.current);
+          if (activeSpan) announceSection(activeSpan.label);
         }
 
         // Meters are throttled: re-rendering every mixer channel at 60fps makes
@@ -357,6 +418,17 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.setPadVolume(value);
   }, []);
 
+  const setGuideOn = useCallback((value: boolean) => {
+    guideOnRef.current = value;
+    setGuideOnState(value);
+    if (!value && typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
+  }, []);
+
+  const setGuideVolume = useCallback((value: number) => {
+    guideVolumeRef.current = value;
+    setGuideVolumeState(value);
+  }, []);
+
   const FADE_SECONDS = 1.2;
 
   const toggleGlobalFade = useCallback(() => {
@@ -421,6 +493,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     padLevel,
     padDb,
     padClipping,
+    guideOn,
+    setGuideOn,
+    guideVolume,
+    setGuideVolume,
     currentSequenceIndex,
     pendingSequenceIndex,
     seekToSequenceIndex,

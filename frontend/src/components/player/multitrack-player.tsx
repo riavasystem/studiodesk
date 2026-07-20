@@ -9,6 +9,7 @@ import { BottomBar } from "@/components/player/bottom-bar";
 import { ChannelStrip } from "@/components/player/channel-strip";
 import { MetronomeStrip } from "@/components/player/metronome-strip";
 import { PadStrip } from "@/components/player/pad-strip";
+import { GuideStrip } from "@/components/player/guide-strip";
 import { MasterStrip } from "@/components/player/master-strip";
 import { useMultitrackPlayer, type ISequenceSpan } from "@/hooks/use-multitrack-player";
 import { normalizeKeyName, semitoneShiftBetweenKeys } from "@/lib/music-keys";
@@ -57,6 +58,7 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
       spans.push({
         itemId: item.id,
         markerId: marker.id,
+        label: marker.label,
         start: marker.position_seconds,
         end: marker.end_time_seconds ?? Infinity,
       });
@@ -183,8 +185,6 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
   return (
     <div className="flex flex-col gap-3">
       <TransportBar
-        title={song.title}
-        artist={song.artist}
         bpm={song.bpm}
         onBpmChange={(value) => buildSongPayload({ bpm: value })}
         timeSignature={song.time_signature}
@@ -252,12 +252,10 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
               clipping={player.metronomeClipping}
               isOn={player.metronomeOn}
               isPlaying={player.isPlaying}
-              bpm={player.metronomeBpm}
               sound={player.metronomeSound}
               subdivision={player.metronomeSubdivision}
               onToggleOn={() => player.setMetronomeOn(!player.metronomeOn)}
               onVolumeChange={player.setMetronomeVolume}
-              onBpmChange={player.setMetronomeBpm}
               onSoundChange={player.setMetronomeSound}
               onSubdivisionChange={player.setMetronomeSubdivision}
             />
@@ -272,6 +270,15 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
               isPlaying={player.isPlaying}
               onToggleOn={() => player.setPadOn(!player.padOn)}
               onVolumeChange={player.setPadVolume}
+            />
+
+            <GuideStrip
+              color="#facc15"
+              volume={player.guideVolume}
+              isOn={player.guideOn}
+              isPlaying={player.isPlaying}
+              onToggleOn={() => player.setGuideOn(!player.guideOn)}
+              onVolumeChange={player.setGuideVolume}
             />
 
             {tracks.map((track, i) => {

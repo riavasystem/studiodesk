@@ -319,7 +319,7 @@ export function Timeline({
   return (
     <div className="rounded-2xl border border-white/6 bg-black/25">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 rounded-t-2xl border-b border-white/6 px-3 py-1.5">
+      <div className="flex flex-wrap items-center gap-3 rounded-t-2xl border-b border-white/6 px-4 py-3">
         <MarkerQuickAdd songId={songId} position={currentTime} triggerLabel={`Sección en ${formatTime(currentTime)}`} />
 
         <button
@@ -332,16 +332,16 @@ export function Timeline({
           }}
           disabled={autoDetect.isPending}
           title="Detecta cambios de sección por energía/timbre del audio y crea marcadores editables. Esto reinicia tu secuencia de reproducción personalizada."
-          className="flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-medium text-violet-300 hover:border-violet-400/50 disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-md border border-violet-400/30 bg-violet-400/10 px-3 py-2 text-sm font-medium text-violet-300 hover:border-violet-400/50 disabled:opacity-50"
         >
-          {autoDetect.isPending ? <Loader2 className="size-3 animate-spin" /> : <Wand2 className="size-3" />}
+          {autoDetect.isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
           Detectar secciones
         </button>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <ZoomIn className="size-3.5 text-white/30" />
+          <ZoomIn className="size-4 text-white/30" />
           <Slider
-            className="w-24"
+            className="w-28"
             min={0}
             max={200}
             step={5}
@@ -352,7 +352,7 @@ export function Timeline({
       </div>
 
       {/* Single canvas: colored sections + waveform + all editing */}
-      <div className="overflow-x-auto rounded-b-2xl px-3 py-3">
+      <div className="overflow-x-auto rounded-b-2xl px-3 py-4">
         <div ref={canvasRef} className="relative">
           {bands.length > 0 ? (
             <div className="absolute inset-0 z-10 flex">
@@ -383,7 +383,7 @@ export function Timeline({
                           if (e.key === "Enter") commitRename(marker);
                           if (e.key === "Escape") setRenamingMarkerId(null);
                         }}
-                        className="absolute top-1 left-1.5 z-20 w-[calc(100%-0.75rem)] rounded border border-white/30 bg-black/80 px-1 text-[9px] font-semibold text-white uppercase outline-none"
+                        className="absolute top-1.5 left-2 z-20 w-[calc(100%-1rem)] rounded border border-white/30 bg-black/80 px-1.5 text-xs font-semibold text-white uppercase outline-none"
                       />
                     ) : (
                       <span
@@ -397,7 +397,7 @@ export function Timeline({
                             : undefined
                         }
                         title={editMode ? "Click para renombrar" : undefined}
-                        className={`absolute top-1 left-1.5 flex items-center gap-1 truncate text-[9px] font-semibold tracking-wide uppercase ${editMode ? "cursor-text hover:underline" : ""}`}
+                        className={`absolute top-1.5 left-2 flex items-center gap-1 truncate text-xs font-semibold tracking-wide uppercase ${editMode ? "cursor-text hover:underline" : ""}`}
                         style={{ color: marker.color, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
                       >
                         {marker.label}
@@ -439,7 +439,7 @@ export function Timeline({
               })}
             </div>
           ) : (
-            <div className="absolute inset-x-0 top-0 z-10 flex h-6 items-center px-1 text-[10px] text-white/25">
+            <div className="absolute inset-x-0 top-0 z-10 flex h-8 items-center px-1 text-sm text-white/25">
               Sin secciones marcadas
             </div>
           )}
@@ -572,7 +572,7 @@ export function Timeline({
               duration={duration}
               isMuted={false}
               onSeek={onSeek}
-              height={64}
+              height={120}
               zoom={zoom}
             />
           )}

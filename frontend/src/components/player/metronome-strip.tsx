@@ -25,12 +25,10 @@ interface IMetronomeStripProps {
   clipping: boolean;
   isOn: boolean;
   isPlaying: boolean;
-  bpm: number;
   sound: MetronomeSoundId;
   subdivision: MetronomeSubdivision;
   onToggleOn: () => void;
   onVolumeChange: (value: number) => void;
-  onBpmChange: (value: number) => void;
   onSoundChange: (id: MetronomeSoundId) => void;
   onSubdivisionChange: (id: MetronomeSubdivision) => void;
 }
@@ -43,12 +41,10 @@ export function MetronomeStrip({
   clipping,
   isOn,
   isPlaying,
-  bpm,
   sound,
   subdivision,
   onToggleOn,
   onVolumeChange,
-  onBpmChange,
   onSoundChange,
   onSubdivisionChange,
 }: IMetronomeStripProps) {
@@ -117,29 +113,6 @@ export function MetronomeStrip({
 
       {expanded && (
         <div className="flex w-full flex-col items-center gap-2 px-2 pt-1">
-          <div className="flex w-full flex-col items-center gap-1 rounded-md border border-white/6 bg-black/20 p-1.5">
-            <span className="font-mono text-[8px] tracking-widest text-white/30 uppercase">BPM del click</span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => onBpmChange(Math.max(30, bpm - 1))}
-                title="Más lento"
-                className="flex size-4 items-center justify-center rounded border border-white/12 text-[10px] text-white/50 hover:text-white"
-              >
-                −
-              </button>
-              <span className="w-10 text-center font-mono text-[10px] font-bold text-white/85 tabular-nums">
-                {Math.round(bpm)}
-              </span>
-              <button
-                onClick={() => onBpmChange(Math.min(300, bpm + 1))}
-                title="Más rápido"
-                className="flex size-4 items-center justify-center rounded border border-white/12 text-[10px] text-white/50 hover:text-white"
-              >
-                +
-              </button>
-            </div>
-          </div>
-
           <div className="flex w-full flex-col gap-1 rounded-md border border-white/6 bg-black/20 p-1.5">
             <span className="text-center font-mono text-[8px] tracking-widest text-white/30 uppercase">Subdivisión</span>
             <div className="flex w-full gap-1">
