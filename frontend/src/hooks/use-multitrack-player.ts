@@ -53,6 +53,12 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [metronomeLevel, setMetronomeLevel] = useState(0);
   const [metronomeDb, setMetronomeDb] = useState(-Infinity);
   const [metronomeClipping, setMetronomeClipping] = useState(false);
+  const [padOn, setPadOnState] = useState(false);
+  const [padVolume, setPadVolumeState] = useState(0.6);
+  const [padVolumeDisplay, setPadVolumeDisplay] = useState(0.6);
+  const [padLevel, setPadLevel] = useState(0);
+  const [padDb, setPadDb] = useState(-Infinity);
+  const [padClipping, setPadClipping] = useState(false);
   const [currentSequenceIndex, setCurrentSequenceIndex] = useState<number | null>(null);
   const [pendingSequenceIndex, setPendingSequenceIndex] = useState<number | null>(null);
   const pendingSequenceIndexRef = useRef<number | null>(null);
@@ -211,6 +217,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
           setMetronomeVolumeDisplay(engine.getMetronomeVolume());
           setMetronomeDb(engine.getMetronomeDb());
           setMetronomeClipping(engine.isMetronomeClipping());
+          setPadLevel(engine.getPadLevel());
+          setPadVolumeDisplay(engine.getPadVolume());
+          setPadDb(engine.getPadDb());
+          setPadClipping(engine.isPadClipping());
         }
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -319,6 +329,16 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.setMetronomeSound(id);
   }, []);
 
+  const setPadOn = useCallback((value: boolean) => {
+    setPadOnState(value);
+    engineRef.current?.setPadOn(value);
+  }, []);
+
+  const setPadVolume = useCallback((value: number) => {
+    setPadVolumeState(value);
+    engineRef.current?.setPadVolume(value);
+  }, []);
+
   const FADE_SECONDS = 1.2;
 
   const toggleGlobalFade = useCallback(() => {
@@ -373,6 +393,14 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     metronomeLevel,
     metronomeDb,
     metronomeClipping,
+    padOn,
+    setPadOn,
+    padVolume,
+    padVolumeDisplay,
+    setPadVolume,
+    padLevel,
+    padDb,
+    padClipping,
     currentSequenceIndex,
     pendingSequenceIndex,
     seekToSequenceIndex,

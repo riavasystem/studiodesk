@@ -8,8 +8,10 @@ import { SequenceEditor } from "@/components/player/sequence-editor";
 import { BottomBar } from "@/components/player/bottom-bar";
 import { ChannelStrip } from "@/components/player/channel-strip";
 import { MetronomeStrip } from "@/components/player/metronome-strip";
+import { PadStrip } from "@/components/player/pad-strip";
 import { MasterStrip } from "@/components/player/master-strip";
 import { useMultitrackPlayer, type ISequenceSpan } from "@/hooks/use-multitrack-player";
+import { normalizeKeyName, semitoneShiftBetweenKeys } from "@/lib/music-keys";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSequence } from "@/hooks/use-sequence";
 import { useUpdateSong } from "@/hooks/use-songs";
@@ -67,10 +69,24 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
   const [panel, setPanel] = useState<PlayerPanel>("mixer");
   const [armedTracks, setArmedTracks] = useState<Set<number>>(new Set());
   const [editMode, setEditMode] = useState(false);
+  const originalKey = normalizeKeyName(song.musical_key);
+  const [playbackKey, setPlaybackKey] = useState(originalKey);
 
   useEffect(() => {
     setActiveSong(song.id);
   }, [song.id, setActiveSong]);
+
+  useEffect(() => {
+    // A new song resets playback to its own original key/pitch.
+    setPlaybackKey(originalKey);
+    player.setPitch(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [song.id]);
+
+  const handlePlaybackKeyChange = (key: string) => {
+    setPlaybackKey(key);
+    player.setPitch(semitoneShiftBetweenKeys(originalKey, key));
+  };
 
   useEffect(() => {
     player.setMetronomeBpm(song.bpm ?? 120);
@@ -201,10 +217,9 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         pendingSequenceIndex={player.pendingSequenceIndex}
         currentTime={player.currentTime}
         duration={player.duration}
-        loop={player.loop}
         onSeek={player.seekTo}
         onSeekToSequenceIndex={player.seekToSequenceIndex}
-        onSetLoop={player.setLoop}
+        onEnableMetronome={() => player.setMetronomeOn(true)}
         editMode={editMode}
       />
 
@@ -233,6 +248,18 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
               onVolumeChange={player.setMetronomeVolume}
               onBpmChange={player.setMetronomeBpm}
               onSoundChange={player.setMetronomeSound}
+            />
+
+            <PadStrip
+              color="#38bdf8"
+              displayVolume={player.padVolumeDisplay}
+              level={player.padLevel}
+              db={player.padDb}
+              clipping={player.padClipping}
+              isOn={player.padOn}
+              isPlaying={player.isPlaying}
+              onToggleOn={() => player.setPadOn(!player.padOn)}
+              onVolumeChange={player.setPadVolume}
             />
 
             {tracks.map((track, i) => {
@@ -292,8 +319,9 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         bpm={song.bpm}
         tempo={player.tempo}
         onTempoChange={player.setTempo}
-        musicalKey={song.musical_key ?? ""}
-        onKeyChange={(value) => buildSongPayload({ musical_key: value })}
+        originalKey={originalKey}
+        playbackKey={playbackKey}
+        onPlaybackKeyChange={handlePlaybackKeyChange}
         transpose={player.pitch}
         onTransposeChange={player.setPitch}
         timeSignature={song.time_signature}

@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Clock3, Loader2, Minus, Plus, Wand2, ZoomIn } from "lucide-react";
+import { Clock3, Loader2, Minus, Plus, Radio, Wand2, ZoomIn } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrackWaveform } from "@/components/player/track-waveform";
@@ -17,6 +17,8 @@ type DragState =
   | { kind: "boundary"; index: number; time: number }
   | { kind: "leading"; time: number }
   | { kind: "trailing"; time: number };
+
+type AddDialogTarget = { kind: "after-marker"; markerId: number } | { kind: "start" } | { kind: "end" };
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -34,10 +36,9 @@ interface ITimelineProps {
   pendingSequenceIndex: number | null;
   currentTime: number;
   duration: number;
-  loop: boolean;
   onSeek: (seconds: number) => void;
   onSeekToSequenceIndex: (index: number) => void;
-  onSetLoop: (value: boolean, start?: number, end?: number) => void;
+  onEnableMetronome: () => void;
   editMode: boolean;
 }
 
@@ -50,14 +51,11 @@ export function Timeline({
   pendingSequenceIndex,
   currentTime,
   duration,
-  loop,
   onSeek,
   onSeekToSequenceIndex,
-  onSetLoop,
+  onEnableMetronome,
   editMode,
 }: ITimelineProps) {
-  const [loopA, setLoopA] = useState<number | null>(null);
-  const [loopB, setLoopB] = useState<number | null>(null);
   const deleteMarker = useDeleteMarker(songId);
   const updateMarker = useUpdateMarker(songId);
   const autoDetect = useAutoDetectMarkers(songId);
@@ -65,7 +63,7 @@ export function Timeline({
 
   const [zoom, setZoom] = useState(0);
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const [addDialogForMarkerId, setAddDialogForMarkerId] = useState<number | null>(null);
+  const [addDialogTarget, setAddDialogTarget] = useState<AddDialogTarget | null>(null);
   const [renamingMarkerId, setRenamingMarkerId] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -102,6 +100,13 @@ export function Timeline({
     } else if (dragState?.kind === "trailing" && index === sorted.length - 1) {
       end = dragState.time;
     }
+    // Never render (or let a handle sit) beyond the real decoded audio
+    // length — a stale end_time_seconds from the DB shouldn't be able to
+    // push the trailing handle off-canvas where it can't be grabbed anymore.
+    if (duration > 0) {
+      end = Math.min(end, duration);
+      start = Math.min(start, end);
+    }
     const widthPct = duration > 0 ? Math.max(0, ((end - start) / duration) * 100) : 0;
     // A marker's canonical clickable slot is its first chronological occurrence
     // in the sequence — repeats are only individually reachable from the
@@ -111,7 +116,8 @@ export function Timeline({
   });
 
   const playheadPct = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
-  const addDialogBand = bands.find((b) => b.marker.id === addDialogForMarkerId) ?? null;
+  const addDialogBand =
+    addDialogTarget?.kind === "after-marker" ? (bands.find((b) => b.marker.id === addDialogTarget.markerId) ?? null) : null;
 
   const handleBandSeek = (sequenceIndex: number, positionSeconds: number) => {
     if (sequenceIndex === -1) {
@@ -315,29 +321,6 @@ export function Timeline({
         </button>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => setLoopA(currentTime)}
-            className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopA !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
-          >
-            A {loopA !== null ? formatTime(loopA) : ""}
-          </button>
-          <button
-            onClick={() => setLoopB(currentTime)}
-            className={`rounded-md border px-2 py-1 font-mono text-[10px] ${loopB !== null ? "border-cyan-400/50 text-cyan-300" : "border-white/10 text-white/40"}`}
-          >
-            B {loopB !== null ? formatTime(loopB) : ""}
-          </button>
-          <button
-            onClick={() => {
-              if (loopA === null || loopB === null) return;
-              onSetLoop(!loop, Math.min(loopA, loopB), Math.max(loopA, loopB));
-            }}
-            disabled={loopA === null || loopB === null}
-            className="rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-mono text-[10px] text-cyan-300 disabled:opacity-30"
-          >
-            Loop A-B
-          </button>
-          <div className="h-4 w-px bg-white/10" />
           <ZoomIn className="size-3.5 text-white/30" />
           <Slider
             className="w-24"
@@ -425,7 +408,7 @@ export function Timeline({
                           title="Agregar una sección después de esta"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setAddDialogForMarkerId(marker.id);
+                            setAddDialogTarget({ kind: "after-marker", markerId: marker.id });
                           }}
                           className="absolute right-1 bottom-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white opacity-90"
                         >
@@ -441,6 +424,28 @@ export function Timeline({
             <div className="absolute inset-x-0 top-0 z-10 flex h-6 items-center px-1 text-[10px] text-white/25">
               Sin secciones marcadas
             </div>
+          )}
+
+          {editMode && bands.length > 0 && (
+            <button
+              type="button"
+              title="Agregar una sección antes de la Intro"
+              onClick={() => setAddDialogTarget({ kind: "start" })}
+              className="absolute top-1 left-1 z-40 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow"
+            >
+              <Plus className="size-3" />
+            </button>
+          )}
+
+          {editMode && bands.length > 0 && (
+            <button
+              type="button"
+              title="Agregar una sección después del Final"
+              onClick={() => setAddDialogTarget({ kind: "end" })}
+              className="absolute top-1 right-1 z-40 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow"
+            >
+              <Plus className="size-3" />
+            </button>
           )}
 
           {/* Draggable handles for section boundaries, so they can be resized
@@ -511,12 +516,23 @@ export function Timeline({
         </div>
       </div>
 
-      <Dialog open={addDialogForMarkerId !== null} onOpenChange={(open) => !open && setAddDialogForMarkerId(null)}>
+      <Dialog open={addDialogTarget !== null} onOpenChange={(open) => !open && setAddDialogTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Agregar sección a la secuencia</DialogTitle>
+            <DialogTitle>Agregar a la secuencia</DialogTitle>
           </DialogHeader>
           <div className="mt-4 flex max-h-96 flex-col gap-1.5 overflow-y-auto">
+            <button
+              onClick={() => {
+                onEnableMetronome();
+                setAddDialogTarget(null);
+              }}
+              className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
+            >
+              <Radio className="size-3.5 shrink-0 text-white/50" />
+              <span className="truncate text-sm font-medium text-white">Click (metrónomo)</span>
+            </button>
+
             {(markers ?? []).length === 0 && (
               <p className="py-6 text-center text-sm text-white/40">No hay secciones disponibles.</p>
             )}
@@ -524,14 +540,17 @@ export function Timeline({
               <button
                 key={option.id}
                 onClick={() => {
+                  const orderIndex =
+                    addDialogTarget?.kind === "start"
+                      ? 0
+                      : addDialogTarget?.kind === "after-marker" && addDialogBand && addDialogBand.sequenceIndex !== -1
+                        ? addDialogBand.sequenceIndex + 1
+                        : undefined;
                   appendItem.mutate(
-                    {
-                      marker_id: option.id,
-                      order_index: addDialogBand && addDialogBand.sequenceIndex !== -1 ? addDialogBand.sequenceIndex + 1 : undefined,
-                    },
+                    { marker_id: option.id, order_index: orderIndex },
                     { onError: () => toast.error("No se pudo agregar la sección") },
                   );
-                  setAddDialogForMarkerId(null);
+                  setAddDialogTarget(null);
                 }}
                 className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
               >

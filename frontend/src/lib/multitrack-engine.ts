@@ -82,8 +82,23 @@ export class MultitrackEngine {
   private metronomeMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
   private metronomeMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
   private metronomeEventId: number | null = null;
+  private metronomeBeatIndex = 0;
   private preFadeTrackVolumes = new Map<number, number>();
   private metronomeVolumeValue = 1;
+
+  // Ambient synth pad — a sustained chord re-triggered every few seconds
+  // while enabled, giving a harmonic bed under the song.
+  private padSynth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: "sine" },
+    envelope: { attack: 1.2, decay: 0.3, sustain: 0.8, release: 1.5 },
+  });
+  private padGain = new Tone.Gain(0.6);
+  private padMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
+  private padMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
+  private padLoopId: number | null = null;
+  private padVolumeValue = 0.6;
+  private static readonly PAD_CHORD = ["C3", "E3", "G3", "B3"];
+  private static readonly PAD_LOOP_SECONDS = 5;
 
   constructor() {
     this.masterGain.connect(this.limiter);
@@ -98,6 +113,10 @@ export class MultitrackEngine {
     this.metronomeGain.connect(this.masterGain);
     this.metronomeGain.connect(this.metronomeMeter);
     this.metronomeGain.connect(this.metronomeMeterDb);
+    this.padSynth.connect(this.padGain);
+    this.padGain.connect(this.masterGain);
+    this.padGain.connect(this.padMeter);
+    this.padGain.connect(this.padMeterDb);
     void this.reverb.generate();
   }
 
@@ -107,9 +126,13 @@ export class MultitrackEngine {
 
   private triggerMetronomeClick(time: number) {
     switch (this.metronomeSoundId) {
-      case "clock":
+      case "clock": {
+        // Alternating tick/tock pitch, like an old pendulum clock, instead
+        // of a flat single-tone click.
+        this.metronomeSynthClock.frequency.value = this.metronomeBeatIndex % 2 === 0 ? 1400 : 900;
         this.metronomeSynthClock.triggerAttackRelease("32n", time);
         break;
+      }
       case "beep":
         this.metronomeSynthBeep.triggerAttackRelease("C6", "32n", time);
         break;
@@ -120,6 +143,44 @@ export class MultitrackEngine {
         this.metronomeSynthHihat.triggerAttackRelease("32n", time);
         break;
     }
+    this.metronomeBeatIndex++;
+  }
+
+  setPadOn(enabled: boolean) {
+    if (enabled && this.padLoopId === null) {
+      this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD);
+      this.padLoopId = Tone.getTransport().scheduleRepeat(() => {
+        this.padSynth.triggerRelease(MultitrackEngine.PAD_CHORD);
+        this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD);
+      }, MultitrackEngine.PAD_LOOP_SECONDS);
+    } else if (!enabled && this.padLoopId !== null) {
+      Tone.getTransport().clear(this.padLoopId);
+      this.padSynth.releaseAll();
+      this.padLoopId = null;
+    }
+  }
+
+  setPadVolume(volume: number) {
+    this.padVolumeValue = volume;
+    this.padGain.gain.rampTo(volume, 0.05);
+  }
+
+  getPadVolume(): number {
+    return this.padGain.gain.value;
+  }
+
+  getPadLevel(): number {
+    const value = this.padMeter.getValue();
+    return typeof value === "number" ? value : 0;
+  }
+
+  getPadDb(): number {
+    const value = this.padMeterDb.getValue();
+    return typeof value === "number" ? value : -Infinity;
+  }
+
+  isPadClipping(): boolean {
+    return this.getPadDb() >= CLIP_THRESHOLD_DB;
   }
 
   setMetronome(enabled: boolean) {
@@ -358,6 +419,7 @@ export class MultitrackEngine {
       node.gain.gain.rampTo(0, seconds);
     }
     this.metronomeGain.gain.rampTo(0, seconds);
+    this.padGain.gain.rampTo(0, seconds);
   }
 
   fadeTracksIn(seconds: number) {
@@ -366,6 +428,7 @@ export class MultitrackEngine {
       if (target !== undefined) node.gain.gain.rampTo(target, seconds);
     }
     this.metronomeGain.gain.rampTo(this.metronomeVolumeValue, seconds);
+    this.padGain.gain.rampTo(this.padVolumeValue, seconds);
   }
 
   setPitch(semitones: number) {
