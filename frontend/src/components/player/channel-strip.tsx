@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Circle, Pencil, Settings } from "lucide-react";
+import { Circle, Pencil, Settings, Trash2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Fader } from "@/components/player/fader";
 import { FaderScale } from "@/components/player/fader-scale";
@@ -34,6 +34,7 @@ interface IChannelStripProps {
   onCompressorToggle: (enabled: boolean) => void;
   onReverbSendChange: (value: number) => void;
   onRename: (name: string) => void;
+  onDelete: () => void;
 }
 
 export function ChannelStrip({
@@ -56,6 +57,7 @@ export function ChannelStrip({
   onCompressorToggle,
   onReverbSendChange,
   onRename,
+  onDelete,
 }: IChannelStripProps) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -254,6 +256,16 @@ export function ChannelStrip({
               }}
             />
           </div>
+
+          <button
+            onClick={() => {
+              if (window.confirm(`¿Eliminar la pista "${track.name}"? Esta acción no se puede deshacer.`)) onDelete();
+            }}
+            title="Eliminar esta pista"
+            className="flex w-full items-center justify-center gap-1 rounded border border-red-500/25 py-1 font-mono text-[9px] font-semibold text-red-400/70 transition-all hover:border-red-500/50 hover:text-red-400"
+          >
+            <Trash2 className="size-2.5" /> ELIMINAR
+          </button>
         </div>
       )}
     </div>

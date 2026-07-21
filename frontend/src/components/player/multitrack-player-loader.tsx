@@ -36,6 +36,9 @@ interface IMultitrackPlayerLoaderProps {
     duration_seconds: number | null;
   }) => void;
   onEditSong: () => void;
+  onDeleteTrack: (id: number) => void;
+  onUploadTrack: (file: File) => void;
+  isUploadingTrack: boolean;
 }
 
 export function MultitrackPlayerLoader(props: IMultitrackPlayerLoaderProps) {

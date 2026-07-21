@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Loader2, Plus } from "lucide-react";
 import { TransportBar, type PlayerPanel } from "@/components/player/transport-bar";
 import { SongCarousel } from "@/components/player/song-carousel";
 import { Timeline } from "@/components/player/timeline";
@@ -45,9 +46,21 @@ interface IMultitrackPlayerProps {
     duration_seconds: number | null;
   }) => void;
   onEditSong: () => void;
+  onDeleteTrack: (id: number) => void;
+  onUploadTrack: (file: File) => void;
+  isUploadingTrack: boolean;
 }
 
-export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack, onEditSong }: IMultitrackPlayerProps) {
+export function MultitrackPlayer({
+  song,
+  songs,
+  tracks,
+  onUpdateTrack,
+  onEditSong,
+  onDeleteTrack,
+  onUploadTrack,
+  isUploadingTrack,
+}: IMultitrackPlayerProps) {
   const { data: markers } = useMarkers(song.id);
   const { data: sequenceItems } = useSequence(song.id);
   const updateSong = useUpdateSong(song.id);
@@ -382,9 +395,33 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack, onEditSon
                   onCompressorToggle={(enabled) => player.setTrackCompressor(track.id, { enabled })}
                   onReverbSendChange={(value) => player.setTrackReverbSend(track.id, value)}
                   onRename={(name) => buildPayload(track, { name })}
+                  onDelete={() => onDeleteTrack(track.id)}
                 />
               );
             })}
+
+            <label
+              title="Agregar una pista de audio"
+              className={`flex min-w-16 shrink-0 basis-16 flex-col items-center justify-center gap-1.5 self-stretch rounded-lg border border-dashed border-white/12 text-white/25 transition-colors hover:border-white/25 hover:text-white/50 ${isUploadingTrack ? "pointer-events-none opacity-40" : "cursor-pointer"}`}
+            >
+              <input
+                type="file"
+                accept="audio/wav,audio/mpeg,audio/flac,audio/aiff,audio/ogg,audio/mp4,.wav,.mp3,.flac,.aiff,.aif,.ogg,.m4a"
+                className="hidden"
+                disabled={isUploadingTrack}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) onUploadTrack(file);
+                }}
+              />
+              {isUploadingTrack ? (
+                <Loader2 className="size-6 animate-spin" />
+              ) : (
+                <Plus className="size-6" />
+              )}
+              <span className="text-center font-mono text-[9px] tracking-widest uppercase">Pista</span>
+            </label>
 
             <div className="mx-1 w-px shrink-0 bg-white/8" />
 
