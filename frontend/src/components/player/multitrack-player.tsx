@@ -288,6 +288,14 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack, onEditSon
         onToggleMetronome={() => player.setMetronomeOn(!player.metronomeOn)}
         padOn={player.padOn}
         onTogglePad={() => player.setPadOn(!player.padOn)}
+        clickAtStart={player.clickAtStart}
+        onToggleClickAtStart={() => player.setClickAtStart(!player.clickAtStart)}
+        padAtStart={player.padAtStart}
+        onTogglePadAtStart={() => player.setPadAtStart(!player.padAtStart)}
+        clickAtEnd={player.clickAtEnd}
+        onToggleClickAtEnd={() => player.setClickAtEnd(!player.clickAtEnd)}
+        padAtEnd={player.padAtEnd}
+        onTogglePadAtEnd={() => player.setPadAtEnd(!player.padAtEnd)}
         editMode={editMode}
       />
 

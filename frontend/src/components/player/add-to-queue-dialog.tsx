@@ -23,6 +23,7 @@ export function AddToQueueDialog({ open, onOpenChange, allSongs, queue }: IAddTo
     toast.success(`"${s.title}" se agregó a la lista`, {
       description: "Sonará automáticamente al terminar la canción actual.",
     });
+    onOpenChange(false);
   };
 
   return (

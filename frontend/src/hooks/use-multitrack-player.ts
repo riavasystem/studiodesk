@@ -82,6 +82,20 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [padLevel, setPadLevel] = useState(0);
   const [padDb, setPadDb] = useState(-Infinity);
   const [padClipping, setPadClipping] = useState(false);
+  // Click/Pad "at the edge" — set from the (+) dialog/gutter buttons at the
+  // very start or very end of the sequence. Independent of the main
+  // metronomeOn/padOn toggle: the song can play with both fully off, and
+  // still have the click or pad kick in right as it enters the edge that
+  // was flagged, forcing the main toggle on at that exact moment (handled
+  // in the tick loop below) instead of requiring it on for the whole song.
+  const [clickAtStart, setClickAtStartState] = useState(false);
+  const [padAtStart, setPadAtStartState] = useState(false);
+  const [clickAtEnd, setClickAtEndState] = useState(false);
+  const [padAtEnd, setPadAtEndState] = useState(false);
+  const clickAtStartRef = useRef(false);
+  const padAtStartRef = useRef(false);
+  const clickAtEndRef = useRef(false);
+  const padAtEndRef = useRef(false);
   const [currentSequenceIndex, setCurrentSequenceIndex] = useState<number | null>(null);
   const [pendingSequenceIndex, setPendingSequenceIndex] = useState<number | null>(null);
   // True once the whole sequence has finished playing through — lets the
@@ -223,6 +237,24 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         const prevTime = lastCheckedTimeRef.current;
         lastCheckedTimeRef.current = time;
         const previousActiveItemId = activeItemIdRef.current;
+        const nowPlaying = engine.isPlaying;
+        const justStartedPlaying = nowPlaying && !wasPlayingRef.current;
+
+        // Click/Pad "at the edge" — force the main toggle on the instant
+        // playback enters the very first sequence item, independent of
+        // whether the user has Click/Pad on for the rest of the song.
+        if (justStartedPlaying && seq.length > 0 && time <= seq[0].start + 0.05) {
+          if (clickAtStartRef.current && !metronomeOnRef.current) {
+            metronomeOnRef.current = true;
+            setMetronomeOnState(true);
+            engine.setMetronome(true);
+          }
+          if (padAtStartRef.current && !padOnRef.current) {
+            padOnRef.current = true;
+            setPadOnState(true);
+            engine.setPadOn(true);
+          }
+        }
 
         if (seq.length === 0 || sequenceEndedRef.current) {
           // Either nothing to follow, or we already ran off the end of the
@@ -261,6 +293,16 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
                 activeItemIdRef.current = nextSpan.itemId;
                 setCurrentSequenceIndex(nextIdx);
               } else {
+                if (clickAtEndRef.current && !metronomeOnRef.current) {
+                  metronomeOnRef.current = true;
+                  setMetronomeOnState(true);
+                  engine.setMetronome(true);
+                }
+                if (padAtEndRef.current && !padOnRef.current) {
+                  padOnRef.current = true;
+                  setPadOnState(true);
+                  engine.setPadOn(true);
+                }
                 engine.finishSequence();
                 sequenceEndedRef.current = true;
                 setSequenceEnded(true);
@@ -281,6 +323,16 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
                 setCurrentSequenceIndex(nextIndex);
                 setPendingSequenceIndex(null);
               } else {
+                if (clickAtEndRef.current && !metronomeOnRef.current) {
+                  metronomeOnRef.current = true;
+                  setMetronomeOnState(true);
+                  engine.setMetronome(true);
+                }
+                if (padAtEndRef.current && !padOnRef.current) {
+                  padOnRef.current = true;
+                  setPadOnState(true);
+                  engine.setPadOn(true);
+                }
                 engine.finishSequence();
                 sequenceEndedRef.current = true;
                 setSequenceEnded(true);
@@ -293,8 +345,6 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         // active — either because playback just crossed into it, or because
         // Play was just pressed on an already-resolved span (a plain itemId
         // comparison would miss that second case, since nothing "changed").
-        const nowPlaying = engine.isPlaying;
-        const justStartedPlaying = nowPlaying && !wasPlayingRef.current;
         wasPlayingRef.current = nowPlaying;
         if (
           nowPlaying &&
@@ -458,6 +508,26 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.setMetronomeSubdivision(subdivision);
   }, []);
 
+  const setClickAtStart = useCallback((value: boolean) => {
+    clickAtStartRef.current = value;
+    setClickAtStartState(value);
+  }, []);
+
+  const setPadAtStart = useCallback((value: boolean) => {
+    padAtStartRef.current = value;
+    setPadAtStartState(value);
+  }, []);
+
+  const setClickAtEnd = useCallback((value: boolean) => {
+    clickAtEndRef.current = value;
+    setClickAtEndState(value);
+  }, []);
+
+  const setPadAtEnd = useCallback((value: boolean) => {
+    padAtEndRef.current = value;
+    setPadAtEndState(value);
+  }, []);
+
   const setPadOn = useCallback((value: boolean) => {
     padOnRef.current = value;
     setPadOnState(value);
@@ -544,6 +614,14 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     padLevel,
     padDb,
     padClipping,
+    clickAtStart,
+    setClickAtStart,
+    padAtStart,
+    setPadAtStart,
+    clickAtEnd,
+    setClickAtEnd,
+    padAtEnd,
+    setPadAtEnd,
     guideOn,
     setGuideOn,
     guideVolume,

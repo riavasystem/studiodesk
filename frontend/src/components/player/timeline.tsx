@@ -49,6 +49,18 @@ interface ITimelineProps {
   onToggleMetronome: () => void;
   padOn: boolean;
   onTogglePad: () => void;
+  // Click/Pad flagged at the very start or end of the sequence — independent
+  // of metronomeOn/padOn above (which apply for the whole song): the song
+  // can play with both fully off and still have the click/pad kick in right
+  // as playback enters that edge.
+  clickAtStart: boolean;
+  onToggleClickAtStart: () => void;
+  padAtStart: boolean;
+  onTogglePadAtStart: () => void;
+  clickAtEnd: boolean;
+  onToggleClickAtEnd: () => void;
+  padAtEnd: boolean;
+  onTogglePadAtEnd: () => void;
   editMode: boolean;
 }
 
@@ -67,6 +79,14 @@ export function Timeline({
   onToggleMetronome,
   padOn,
   onTogglePad,
+  clickAtStart,
+  onToggleClickAtStart,
+  padAtStart,
+  onTogglePadAtStart,
+  clickAtEnd,
+  onToggleClickAtEnd,
+  padAtEnd,
+  onTogglePadAtEnd,
   editMode,
 }: ITimelineProps) {
   const deleteMarker = useDeleteMarker(songId);
@@ -393,8 +413,9 @@ export function Timeline({
           {/* Independent from the colored sections: a reserved gray-transparent
               "insertion gutter" before the Intro (the only bands with this
               color), as its own dedicated space rather than overlapping the
-              first section. Also carries the always-on Click/Pad infinity
-              toggles, since those loop for the whole song regardless of section. */}
+              first section. Also carries the Click/Pad-at-start toggles —
+              independent of the main Click/Pad for the song, they force it
+              on right as playback enters this first section. */}
           {editMode && bands.length > 0 && (
             <div className="flex w-14 shrink-0 flex-col items-center justify-between rounded-l-lg border-2 border-dashed border-white/40 bg-neutral-500/25 py-1.5 backdrop-blur-[1px]">
               <button
@@ -408,17 +429,17 @@ export function Timeline({
               <div className="flex flex-col items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={onToggleMetronome}
-                  title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                  className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                  onClick={onToggleClickAtStart}
+                  title={clickAtStart ? "Click al inicio activo — click para quitar" : "Click al inicio — independiente del click de toda la canción"}
+                  className={`flex size-7 items-center justify-center rounded-full border ${clickAtStart ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                 >
                   <InfinityIcon className="size-4" />
                 </button>
                 <button
                   type="button"
-                  onClick={onTogglePad}
-                  title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                  className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                  onClick={onTogglePadAtStart}
+                  title={padAtStart ? "Pad al inicio activo — click para quitar" : "Pad al inicio — independiente del pad de toda la canción"}
+                  className={`flex size-7 items-center justify-center rounded-full border ${padAtStart ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                 >
                   <Waves className="size-4" />
                 </button>
@@ -599,17 +620,17 @@ export function Timeline({
             <div className="flex flex-col items-center gap-1.5">
               <button
                 type="button"
-                onClick={onToggleMetronome}
-                title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                onClick={onToggleClickAtEnd}
+                title={clickAtEnd ? "Click al final activo — click para quitar" : "Click al final — suena aunque el click esté apagado en el resto de la canción"}
+                className={`flex size-7 items-center justify-center rounded-full border ${clickAtEnd ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
               >
                 <InfinityIcon className="size-4" />
               </button>
               <button
                 type="button"
-                onClick={onTogglePad}
-                title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                onClick={onTogglePadAtEnd}
+                title={padAtEnd ? "Pad al final activo — click para quitar" : "Pad al final — suena aunque el pad esté apagado en el resto de la canción"}
+                className={`flex size-7 items-center justify-center rounded-full border ${padAtEnd ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
               >
                 <Waves className="size-4" />
               </button>
@@ -643,17 +664,17 @@ export function Timeline({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={onToggleMetronome}
-                    title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                    className={`flex size-5 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                    onClick={onToggleClickAtStart}
+                    title={clickAtStart ? "Click al inicio activo — click para quitar" : "Click al inicio — independiente del click de toda la canción"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${clickAtStart ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                   >
                     <InfinityIcon className="size-3" />
                   </button>
                   <button
                     type="button"
-                    onClick={onTogglePad}
-                    title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                    className={`flex size-5 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                    onClick={onTogglePadAtStart}
+                    title={padAtStart ? "Pad al inicio activo — click para quitar" : "Pad al inicio — independiente del pad de toda la canción"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${padAtStart ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                   >
                     <Waves className="size-3" />
                   </button>
@@ -721,17 +742,17 @@ export function Timeline({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={onToggleMetronome}
-                    title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                    className={`flex size-5 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                    onClick={onToggleClickAtEnd}
+                    title={clickAtEnd ? "Click al final activo — click para quitar" : "Click al final — suena aunque el click esté apagado en el resto de la canción"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${clickAtEnd ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                   >
                     <InfinityIcon className="size-3" />
                   </button>
                   <button
                     type="button"
-                    onClick={onTogglePad}
-                    title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                    className={`flex size-5 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                    onClick={onTogglePadAtEnd}
+                    title={padAtEnd ? "Pad al final activo — click para quitar" : "Pad al final — suena aunque el pad esté apagado en el resto de la canción"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${padAtEnd ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
                   >
                     <Waves className="size-3" />
                   </button>
@@ -750,24 +771,44 @@ export function Timeline({
           <div className="mt-4 flex max-h-96 flex-col gap-1.5 overflow-y-auto">
             <button
               onClick={() => {
-                if (!metronomeOn) onToggleMetronome();
+                if (addDialogTarget?.kind === "start") {
+                  if (!clickAtStart) onToggleClickAtStart();
+                } else if (addDialogTarget?.kind === "end") {
+                  if (!clickAtEnd) onToggleClickAtEnd();
+                } else if (!metronomeOn) {
+                  onToggleMetronome();
+                }
                 setAddDialogTarget(null);
               }}
               className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
             >
               <Radio className="size-3.5 shrink-0 text-white/50" />
-              <span className="truncate text-sm font-medium text-white">Click (metrónomo) — se activa para toda la canción</span>
+              <span className="truncate text-sm font-medium text-white">
+                {addDialogTarget?.kind === "start" || addDialogTarget?.kind === "end"
+                  ? "Click (metrónomo) — suena a partir de aquí, aunque esté apagado en el resto de la canción"
+                  : "Click (metrónomo) — se activa para toda la canción"}
+              </span>
             </button>
 
             <button
               onClick={() => {
-                if (!padOn) onTogglePad();
+                if (addDialogTarget?.kind === "start") {
+                  if (!padAtStart) onTogglePadAtStart();
+                } else if (addDialogTarget?.kind === "end") {
+                  if (!padAtEnd) onTogglePadAtEnd();
+                } else if (!padOn) {
+                  onTogglePad();
+                }
                 setAddDialogTarget(null);
               }}
               className="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
             >
               <Waves className="size-3.5 shrink-0 text-white/50" />
-              <span className="truncate text-sm font-medium text-white">Pad (ambiente) — se activa para toda la canción</span>
+              <span className="truncate text-sm font-medium text-white">
+                {addDialogTarget?.kind === "start" || addDialogTarget?.kind === "end"
+                  ? "Pad (ambiente) — suena a partir de aquí, aunque esté apagado en el resto de la canción"
+                  : "Pad (ambiente) — se activa para toda la canción"}
+              </span>
             </button>
 
             <button

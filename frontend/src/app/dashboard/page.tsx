@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ListMusic, Disc3, Tag, Music2, Star, Plus, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useAuthStore } from "@/lib/auth-store";
 import { useSongs } from "@/hooks/use-songs";
-import { usePlaylists } from "@/hooks/use-playlists";
+import { usePlaylists, usePlaylistSongs, type IPlaylist } from "@/hooks/use-playlists";
 import { useAlbums } from "@/hooks/use-albums";
 import { useCategories } from "@/hooks/use-categories";
 import { resolveCoverImageUrl } from "@/lib/api-client";
+import { useQueueStore } from "@/store/queue-store";
 
 const COVER_GRADIENTS = [
   "from-orange-500/25 to-transparent",
@@ -49,6 +51,31 @@ function StatCard({
       </div>
       <ChevronRight className="size-4 shrink-0 text-white/15 transition-colors group-hover:text-orange-400" />
     </Link>
+  );
+}
+
+/** A saved project/playlist opens straight into the player — no detour
+ * through the playlist's repertoire-editing page first. */
+function SavedProjectCard({ playlist }: { playlist: IPlaylist }) {
+  const router = useRouter();
+  const setQueue = useQueueStore((s) => s.setQueue);
+  const { data: items } = usePlaylistSongs(playlist.id);
+  const orderedSongIds = [...(items ?? [])].sort((a, b) => a.order_index - b.order_index).map((i) => i.song_id);
+
+  return (
+    <button
+      onClick={() => {
+        if (orderedSongIds.length === 0) return;
+        setQueue(orderedSongIds);
+        router.push(`/dashboard/songs/${orderedSongIds[0]}?autoplay=1`);
+      }}
+      disabled={orderedSongIds.length === 0}
+      className="flex w-44 shrink-0 flex-col gap-1 rounded-xl border border-white/8 bg-linear-to-b from-white/5 to-transparent p-3 text-left transition-colors hover:border-orange-400/30 disabled:opacity-40"
+    >
+      <ListMusic className="size-4 text-white/30" />
+      <p className="mt-1 truncate text-sm font-medium text-white">{playlist.name}</p>
+      <p className="text-xs text-orange-400">Cargar y reproducir →</p>
+    </button>
   );
 }
 
@@ -106,15 +133,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-3 overflow-x-auto pb-1">
             {playlists.slice(0, 6).map((playlist) => (
-              <Link
-                key={playlist.id}
-                href={`/dashboard/playlists/${playlist.id}`}
-                className="flex w-44 shrink-0 flex-col gap-1 rounded-xl border border-white/8 bg-linear-to-b from-white/5 to-transparent p-3 transition-colors hover:border-orange-400/30"
-              >
-                <ListMusic className="size-4 text-white/30" />
-                <p className="mt-1 truncate text-sm font-medium text-white">{playlist.name}</p>
-                <p className="text-xs text-orange-400">Abrir en el reproductor →</p>
-              </Link>
+              <SavedProjectCard key={playlist.id} playlist={playlist} />
             ))}
           </div>
         </div>
