@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Play, Plus } from "lucide-react";
+import { Play, Plus, X } from "lucide-react";
 import { resolveCoverImageUrl } from "@/lib/api-client";
 import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useQueueStore } from "@/store/queue-store";
@@ -16,6 +16,7 @@ interface ISongCarouselProps {
 
 export function SongCarousel({ activeSongId, allSongs }: ISongCarouselProps) {
   const queue = useQueueStore((s) => s.queue);
+  const removeFromQueue = useQueueStore((s) => s.removeFromQueue);
   const [addOpen, setAddOpen] = useState(false);
 
   const songs = queue
@@ -56,6 +57,17 @@ export function SongCarousel({ activeSongId, allSongs }: ISongCarouselProps) {
                   <Play className="size-3 fill-current" /> En reproducción
                 </span>
               )}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  removeFromQueue(s.id);
+                }}
+                title="Quitar de la lista de reproducción"
+                className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-black/60 text-white/70 hover:bg-black/80 hover:text-white"
+              >
+                <X className="size-3.5" />
+              </button>
             </div>
             <p
               className={`truncate text-sm font-medium ${active ? "text-orange-400" : "text-white/60 group-hover:text-white"}`}

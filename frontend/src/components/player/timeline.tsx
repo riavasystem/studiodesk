@@ -130,7 +130,12 @@ export function Timeline({
     // in the sequence — repeats are only individually reachable from the
     // sequence editor panel, where each row is an unambiguous specific slot.
     const sequenceIndex = sequence.findIndex((s) => s.markerId === marker.id);
-    return { marker, start, end, widthPct, sequenceIndex, index };
+    // How many times this same section appears in the play sequence — a
+    // repeat added via (+) doesn't get its own band on this physical-time
+    // canvas (it plays the very same audio range again), so this count is
+    // the only visual cue here that a repeat was actually added.
+    const repeatCount = sequence.filter((s) => s.markerId === marker.id).length;
+    return { marker, start, end, widthPct, sequenceIndex, repeatCount, index };
   });
 
   const playheadPct = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
@@ -356,7 +361,7 @@ export function Timeline({
         <div ref={canvasRef} className="relative">
           {bands.length > 0 ? (
             <div className="absolute inset-0 z-10 flex">
-              {bands.map(({ marker, widthPct, start, sequenceIndex }) => {
+              {bands.map(({ marker, widthPct, start, sequenceIndex, repeatCount }) => {
                 const isActive = sequenceIndex !== -1 && sequenceIndex === currentSequenceIndex;
                 const isPending = sequenceIndex !== -1 && sequenceIndex === pendingSequenceIndex;
                 return (
@@ -402,6 +407,15 @@ export function Timeline({
                       >
                         {marker.label}
                         {isPending && <Clock3 className="size-2.5 shrink-0" />}
+                      </span>
+                    )}
+
+                    {repeatCount > 1 && (
+                      <span
+                        title={`Esta sección se repite ${repeatCount} veces en la secuencia de reproducción — mirá el panel Secuencia para el detalle`}
+                        className="absolute top-1.5 right-1.5 rounded-full bg-black/70 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white/80"
+                      >
+                        ×{repeatCount}
                       </span>
                     )}
 
@@ -622,7 +636,13 @@ export function Timeline({
                         : undefined;
                   appendItem.mutate(
                     { marker_id: option.id, order_index: orderIndex },
-                    { onError: () => toast.error("No se pudo agregar la sección") },
+                    {
+                      onSuccess: () =>
+                        toast.success(`"${option.label}" se agregó a la secuencia de reproducción`, {
+                          description: "Se repetirá su audio en ese punto al reproducir. Mirá el detalle en el panel Secuencia.",
+                        }),
+                      onError: () => toast.error("No se pudo agregar la sección"),
+                    },
                   );
                   setAddDialogTarget(null);
                 }}
