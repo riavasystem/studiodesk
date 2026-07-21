@@ -77,17 +77,17 @@ export function ChannelStrip({
 
   return (
     <div
-      className={`flex min-w-20 flex-1 basis-24 flex-col items-center gap-2 rounded-lg border pt-0 pb-2.5 transition-colors ${
+      className={`flex min-w-20 flex-1 basis-24 flex-col items-center gap-1.5 rounded-lg border pt-0 pb-1.5 transition-colors ${
         audible && isPlaying ? "border-white/15 bg-linear-to-b from-white/6 to-white/2" : "border-white/6 bg-white/2"
       }`}
     >
       {/* Large instrument icon, above the track */}
       <div
-        className="flex w-full items-center justify-center rounded-t-[7px] py-2.5"
+        className="flex w-full items-center justify-center rounded-t-[7px] py-1.5"
         style={{ backgroundColor: `${color}1a`, borderBottom: `1px solid ${color}55` }}
       >
-        <span title={typeLabel} className="flex size-9 items-center justify-center rounded-full" style={{ backgroundColor: `${color}22` }}>
-          <TypeIcon className="size-5" style={{ color }} />
+        <span title={typeLabel} className="flex size-7 items-center justify-center rounded-full" style={{ backgroundColor: `${color}22` }}>
+          <TypeIcon className="size-4" style={{ color }} />
         </span>
       </div>
 
@@ -126,7 +126,7 @@ export function ChannelStrip({
         </button>
       </div>
 
-      <div className="flex h-36 w-full items-stretch justify-center gap-1 px-1.5">
+      <div className="flex h-28 w-full items-stretch justify-center gap-1 px-1.5">
         <VerticalMeter level={level} active={audible} clipping={clipping} />
         <FaderScale />
         <Fader value={displayVolume} min={0} max={2} accent={color} onChange={onVolumeChange} />

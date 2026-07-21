@@ -1,40 +1,89 @@
 "use client";
 
-import Link from "next/link";
-import { Library } from "lucide-react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { ListMusic, ListTree, Play, Repeat, Settings2, Sliders, SkipBack, Square, Waves } from "lucide-react";
 import { SongCarousel } from "@/components/player/song-carousel";
 import { useSongs } from "@/hooks/use-songs";
 import { useQueueStore } from "@/store/queue-store";
 
-/** Landing view for the "Reproductor" tab when no song is open yet — just
- * the queue (empty at first, only the "+" card) so the user can build a
- * set list from scratch and click a card to start playing it. Uploading/
- * managing the song library lives one click away, at /dashboard/songs/library. */
+/** Landing view for the "Reproductor" tab. If a song was already open this
+ * session, jump straight back to its full player (mid-playback, nothing
+ * interrupted) instead of showing this empty shell — see activeSongId in
+ * queue-store. Only shown when there's genuinely nothing playing yet. */
 export default function PlayerLandingPage() {
+  const router = useRouter();
   const { data: songs } = useSongs();
-  const queue = useQueueStore((s) => s.queue);
+  const activeSongId = useQueueStore((s) => s.activeSongId);
+
+  useEffect(() => {
+    if (activeSongId !== null) router.replace(`/dashboard/songs/${activeSongId}`);
+  }, [activeSongId, router]);
+
+  if (activeSongId !== null) return null;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="font-mono text-xs tracking-[0.3em] text-orange-400 uppercase">Reproductor</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white">
-            {queue.length === 0 ? "Armá tu lista para empezar" : "Tu lista de reproducción"}
-          </h1>
-          <p className="mt-1 text-sm text-white/45">
-            Agregá canciones con el botón + y hacé click en una para empezar a reproducirla.
-          </p>
+    <div className="flex flex-col gap-2">
+      {/* Empty transport bar — same shape as the real one, everything disabled. */}
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent px-4 py-2.5 opacity-50">
+        <div className="flex flex-col items-start gap-0.5 leading-none">
+          <span className="font-mono text-2xl font-bold text-white/40 tabular-nums">--</span>
+          <span className="mt-1 font-mono text-xs text-white/25">4/4</span>
         </div>
-        <Link
-          href="/dashboard/songs/library"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-white/60 hover:border-white/25 hover:text-white"
-        >
-          <Library className="size-4" /> Biblioteca de canciones
-        </Link>
+        <div className="flex flex-col items-center rounded-xl border border-white/10 bg-black/40 px-5 py-2.5 leading-tight">
+          <span className="font-mono text-2xl font-bold text-white/30 tabular-nums">0:00</span>
+          <span className="font-mono text-xs text-white/20">0:00 / 0:00</span>
+        </div>
+        <div className="flex flex-col items-center justify-center gap-0.5 rounded-xl border border-white/8 bg-black/30 px-3 py-2.5">
+          <span className="font-mono text-lg font-bold text-white/30">--</span>
+          <span className="font-mono text-[10px] tracking-widest text-white/25 uppercase">Tonalidad</span>
+        </div>
+        <div className="flex size-12 items-center justify-center rounded-xl border border-white/8 bg-black/30 text-white/25">
+          <Waves className="size-5" />
+        </div>
+        <div className="flex size-12 items-center justify-center rounded-xl border border-white/8 bg-black/30 text-white/25">
+          <SkipBack className="size-5" />
+        </div>
+        <div className="flex size-12 items-center justify-center rounded-xl border border-white/8 bg-black/30 text-white/25">
+          <Play className="size-5" />
+        </div>
+        <div className="flex size-12 items-center justify-center rounded-xl border border-white/8 bg-black/30 text-white/25">
+          <Repeat className="size-5" />
+        </div>
+        <div className="flex size-12 items-center justify-center rounded-xl border border-white/8 bg-black/30 text-white/25">
+          <Square className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1" />
+        <div className="flex size-12 items-center justify-center rounded-xl border border-white/8 bg-black/30 text-white/25">
+          <ListMusic className="size-5" />
+        </div>
+        <div className="flex size-12 items-center justify-center rounded-xl border border-white/8 bg-black/30 text-white/25">
+          <ListTree className="size-5" />
+        </div>
       </div>
 
-      <SongCarousel activeSongId={-1} allSongs={songs ?? []} />
+      {/* Queue — the one part that's actually functional here: pick or add a
+          song to start playing. */}
+      <div className="rounded-2xl border border-white/6 bg-black/15 p-2">
+        <p className="mb-2 px-1 font-mono text-[10px] tracking-widest text-white/30 uppercase">
+          Cola de reproducción — elegí una canción para empezar
+        </p>
+        <SongCarousel activeSongId={-1} allSongs={songs ?? []} />
+      </div>
+
+      {/* Empty timeline */}
+      <div className="flex min-h-32 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-white/6 bg-black/25 py-10 text-center opacity-60">
+        <Settings2 className="size-6 text-white/20" />
+        <p className="max-w-xs text-sm text-white/30">
+          Acá vas a ver la estructura y el waveform de la canción que elijas.
+        </p>
+      </div>
+
+      {/* Empty mixer */}
+      <div className="flex min-h-20 items-center justify-center gap-2 rounded-2xl border border-white/6 bg-black/20 py-6 text-center text-sm text-white/25">
+        <Sliders className="size-4" />
+        El mezclador y las pistas aparecen acá cuando cargues una canción.
+      </div>
     </div>
   );
 }

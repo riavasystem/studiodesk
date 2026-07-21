@@ -25,12 +25,12 @@ interface IPadStripProps {
 export function PadStrip({ color, displayVolume, level, db, clipping, isOn, isPlaying, onToggleOn, onVolumeChange }: IPadStripProps) {
   return (
     <div
-      className={`flex min-w-20 flex-1 basis-24 flex-col items-center gap-2 rounded-lg border pt-0 pb-2.5 transition-colors ${
+      className={`flex min-w-20 flex-1 basis-24 flex-col items-center gap-1.5 rounded-lg border pt-0 pb-1.5 transition-colors ${
         isOn && isPlaying ? "border-white/15 bg-linear-to-b from-white/6 to-white/2" : "border-white/6 bg-white/2"
       }`}
     >
       <div
-        className="flex w-full items-center justify-center rounded-t-[7px] py-2.5"
+        className="flex w-full items-center justify-center rounded-t-[7px] py-1.5"
         style={{ backgroundColor: `${color}1a`, borderBottom: `1px solid ${color}55` }}
       >
         <span title="Pad ambiente" className="flex size-9 items-center justify-center rounded-full" style={{ backgroundColor: `${color}22` }}>
@@ -57,7 +57,7 @@ export function PadStrip({ color, displayVolume, level, db, clipping, isOn, isPl
         </button>
       </div>
 
-      <div className="flex h-36 w-full items-stretch justify-center gap-1 px-1.5">
+      <div className="flex h-28 w-full items-stretch justify-center gap-1 px-1.5">
         <VerticalMeter level={level} active={isOn} clipping={clipping} />
         <FaderScale />
         <Fader value={displayVolume} min={0} max={2} accent={color} onChange={onVolumeChange} />
