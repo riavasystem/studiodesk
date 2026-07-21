@@ -102,6 +102,9 @@ export class MultitrackEngine {
   private metronomeEventId: number | null = null;
   private metronomeBeatIndex = 0;
   private preFadeTrackVolumes = new Map<number, number>();
+  // Remembered so resumeTracks() can restore correct per-track audibility
+  // after finishSequence() force-mutes everything at the end of a song.
+  private lastMixState: ITrackMixState[] = [];
   private metronomeVolumeValue = 1;
 
   // Ambient synth pad — a sustained chord re-triggered every few seconds
@@ -266,6 +269,14 @@ export class MultitrackEngine {
     this.rescheduleMetronomeIfActive();
   }
 
+  get isPadOn(): boolean {
+    return this.padOnFlag;
+  }
+
+  get isMetronomeOn(): boolean {
+    return this.metronomeEventId !== null;
+  }
+
   get duration(): number {
     let max = 0;
     for (const node of this.nodes.values()) {
@@ -275,7 +286,10 @@ export class MultitrackEngine {
   }
 
   async loadTracks(tracks: ITrackLoadInput[], onTrackLoaded?: () => void) {
-    this.dispose();
+    // Only tears down this song's own track nodes — never the transport, the
+    // Click or the Pad, which are meant to keep going across a song swap
+    // (see finishSequence()) since they're independent of any one song.
+    this.disposeTracks();
     await Tone.start();
 
     const loadOne = (track: ITrackLoadInput) =>
@@ -345,6 +359,7 @@ export class MultitrackEngine {
   }
 
   private applySoloState(tracks: ITrackMixState[]) {
+    this.lastMixState = tracks;
     const anySolo = tracks.some((t) => t.isSolo);
     for (const track of tracks) {
       const node = this.nodes.get(track.id);
@@ -352,6 +367,13 @@ export class MultitrackEngine {
       const audible = anySolo ? track.isSolo : !track.isMuted;
       node.player.mute = !audible;
     }
+  }
+
+  /** Restores each track's correct mute/solo state after finishSequence()
+   * force-muted everything — used when resuming into the same song instead
+   * of moving on to the next one (e.g. the user rewinds after the end). */
+  private resumeTracks() {
+    this.applySoloState(this.lastMixState);
   }
 
   getTrackLevel(id: number): number {
@@ -505,7 +527,11 @@ export class MultitrackEngine {
 
   play() {
     if (!this.loaded) return;
-    Tone.getTransport().start();
+    this.resumeTracks();
+    // Transport may already be running if Click/Pad carried over from a
+    // previous song (finishSequence() never paused it) — starting an
+    // already-started transport throws in Tone.js.
+    if (Tone.getTransport().state !== "started") Tone.getTransport().start();
     if (this.padOnFlag) this.startPadSound();
   }
 
@@ -521,7 +547,28 @@ export class MultitrackEngine {
   }
 
   seekTo(seconds: number) {
+    this.resumeTracks();
     Tone.getTransport().seconds = Math.max(0, Math.min(seconds, this.duration));
+  }
+
+  /** Rewinds the transport to 0 without touching the Click/Pad schedules or
+   * their sounding state — used when a new song's tracks finish loading,
+   * since every track is synced to start at transport position 0. */
+  resetPosition() {
+    Tone.getTransport().seconds = 0;
+  }
+
+  /** Called when a song's sequence naturally plays through to its end.
+   * Silences this song's own tracks (so nothing keeps playing past the
+   * arranged "Final" section) but — unlike pause()/stop() — leaves the
+   * transport running when Click or Pad are on, since those loop
+   * independently of any one song and are meant to keep sounding through
+   * the gap until the next song in the queue takes over. */
+  finishSequence() {
+    for (const node of this.nodes.values()) node.player.mute = true;
+    if (!this.padOnFlag && this.metronomeEventId === null) {
+      Tone.getTransport().pause();
+    }
   }
 
   get currentTime(): number {
@@ -532,21 +579,10 @@ export class MultitrackEngine {
     return Tone.getTransport().state === "started";
   }
 
-  dispose() {
-    Tone.getTransport().stop();
-    Tone.getTransport().cancel();
-    // Transport.cancel() wipes every scheduled event, including the click's
-    // and pad's own scheduleRepeat — without nulling these too, setMetronome/
-    // setPadOn would believe a (now-cancelled) schedule is still active and
-    // silently refuse to reschedule it after loading the next song.
-    this.metronomeEventId = null;
-    this.padLoopId = null;
-    // Transport.cancel() only removes the *scheduled retriggers* — a chord
-    // already mid-sustain from triggerAttack() keeps ringing on its own
-    // envelope regardless, since it was never tied to the Transport clock.
-    // Force it silent now so it can't audibly bleed into whatever loads next.
-    this.padSynth.releaseAll();
-    this.padSounding = false;
+  /** Tears down only this song's own track nodes — the part that genuinely
+   * needs replacing on every song swap. Click/Pad/transport are untouched,
+   * since (per finishSequence()) they're meant to survive across songs. */
+  private disposeTracks() {
     for (const node of this.nodes.values()) {
       node.player.unsync();
       node.player.dispose();
@@ -563,4 +599,38 @@ export class MultitrackEngine {
     this.nodes.clear();
     this.loaded = false;
   }
+
+  /** Full teardown, including the transport, Click and Pad — only for
+   * genuinely leaving the player altogether (not for a normal song swap,
+   * which uses loadTracks()/disposeTracks() instead so Click/Pad can keep
+   * sounding across songs). */
+  dispose() {
+    Tone.getTransport().stop();
+    Tone.getTransport().cancel();
+    // Transport.cancel() wipes every scheduled event, including the click's
+    // and pad's own scheduleRepeat — without nulling these too, setMetronome/
+    // setPadOn would believe a (now-cancelled) schedule is still active and
+    // silently refuse to reschedule it after loading the next song.
+    this.metronomeEventId = null;
+    this.padLoopId = null;
+    // Transport.cancel() only removes the *scheduled retriggers* — a chord
+    // already mid-sustain from triggerAttack() keeps ringing on its own
+    // envelope regardless, since it was never tied to the Transport clock.
+    // Force it silent now so it can't audibly bleed into whatever loads next.
+    this.padSynth.releaseAll();
+    this.padSounding = false;
+    this.disposeTracks();
+  }
+}
+
+let sharedEngine: MultitrackEngine | null = null;
+
+/** The engine is a true singleton (one per browser tab), not tied to any
+ * single song page's component lifecycle. Song pages remount on every
+ * navigation (each song is its own route), but Click/Pad are meant to keep
+ * sounding across that navigation — so the audio graph that produces them
+ * has to live longer than the component that happens to be driving it. */
+export function getSharedMultitrackEngine(): MultitrackEngine {
+  if (!sharedEngine) sharedEngine = new MultitrackEngine();
+  return sharedEngine;
 }

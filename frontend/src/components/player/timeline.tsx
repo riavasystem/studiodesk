@@ -7,7 +7,14 @@ import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrackWaveform } from "@/components/player/track-waveform";
 import { MarkerQuickAdd } from "@/components/player/marker-quick-add";
-import { useAutoDetectMarkers, useDeleteMarker, useUpdateMarker, type ISongMarker } from "@/hooks/use-markers";
+import {
+  useAutoDetectMarkers,
+  useCreateMarker,
+  useDeleteMarker,
+  useUpdateMarker,
+  MARKER_TYPE_COLORS,
+  type ISongMarker,
+} from "@/hooks/use-markers";
 import { useAppendSequenceItem, useRemoveSequenceItem } from "@/hooks/use-sequence";
 import type { ISequenceSpan } from "@/hooks/use-multitrack-player";
 
@@ -64,6 +71,7 @@ export function Timeline({
 }: ITimelineProps) {
   const deleteMarker = useDeleteMarker(songId);
   const updateMarker = useUpdateMarker(songId);
+  const createMarker = useCreateMarker(songId);
   const autoDetect = useAutoDetectMarkers(songId);
   const appendItem = useAppendSequenceItem(songId);
   const removeItem = useRemoveSequenceItem(songId);
@@ -152,6 +160,18 @@ export function Timeline({
   const playheadPct = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
   const addDialogBand =
     addDialogTarget?.kind === "after-marker" ? (bands.find((b) => b.marker.id === addDialogTarget.markerId) ?? null) : null;
+
+  // Where a marker picked/created from the (+) dialog lands in the play
+  // sequence — right after the section that was open when it was pressed,
+  // at the very start, or at the very end. Shared by the "pick an existing
+  // section" and "create a brand new section" flows below.
+  const addDialogOrderIndex = (): number | undefined => {
+    if (addDialogTarget?.kind === "start") return 0;
+    if (addDialogTarget?.kind === "after-marker" && addDialogBand && addDialogBand.sequenceIndex !== -1) {
+      return addDialogBand.sequenceIndex + 1;
+    }
+    return undefined;
+  };
 
   const handleBandSeek = (sequenceIndex: number, positionSeconds: number) => {
     if (sequenceIndex === -1) {
@@ -750,6 +770,42 @@ export function Timeline({
               <span className="truncate text-sm font-medium text-white">Pad (ambiente) — se activa para toda la canción</span>
             </button>
 
+            <button
+              onClick={() => {
+                createMarker.mutate(
+                  {
+                    label: "Sección nueva",
+                    marker_type: "cue",
+                    color: MARKER_TYPE_COLORS.cue,
+                    position_seconds: currentTime,
+                  },
+                  {
+                    onSuccess: (marker) => {
+                      appendItem.mutate(
+                        { marker_id: marker.id, order_index: addDialogOrderIndex() },
+                        {
+                          onSuccess: () => {
+                            toast.success('"Sección nueva" se agregó a continuación en la secuencia');
+                            // Drop straight into rename mode so the user can name it
+                            // right away, instead of hunting for the rename gesture.
+                            setRenameDraft(marker.label);
+                            setRenamingMarkerId(marker.id);
+                          },
+                          onError: () => toast.error("No se pudo agregar la sección a la secuencia"),
+                        },
+                      );
+                    },
+                    onError: () => toast.error("No se pudo crear la sección"),
+                  },
+                );
+                setAddDialogTarget(null);
+              }}
+              className="flex items-center gap-2 rounded-lg border border-dashed border-emerald-400/30 px-3 py-2 text-left transition-colors hover:border-emerald-400/50 hover:bg-emerald-400/5"
+            >
+              <Plus className="size-3.5 shrink-0 text-emerald-400" />
+              <span className="truncate text-sm font-medium text-emerald-300">Sección nueva — se crea vacía y se puede renombrar</span>
+            </button>
+
             {(markers ?? []).length === 0 && (
               <p className="py-6 text-center text-sm text-white/40">No hay secciones disponibles.</p>
             )}
@@ -757,14 +813,8 @@ export function Timeline({
               <button
                 key={option.id}
                 onClick={() => {
-                  const orderIndex =
-                    addDialogTarget?.kind === "start"
-                      ? 0
-                      : addDialogTarget?.kind === "after-marker" && addDialogBand && addDialogBand.sequenceIndex !== -1
-                        ? addDialogBand.sequenceIndex + 1
-                        : undefined;
                   appendItem.mutate(
-                    { marker_id: option.id, order_index: orderIndex },
+                    { marker_id: option.id, order_index: addDialogOrderIndex() },
                     {
                       onSuccess: () =>
                         toast.success(`"${option.label}" se agregó a continuación en la secuencia`, {

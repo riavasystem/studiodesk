@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildAuthenticatedStorageUrl } from "@/lib/api-client";
-import { MultitrackEngine, type MetronomeSoundId, type MetronomeSubdivision } from "@/lib/multitrack-engine";
+import {
+  getSharedMultitrackEngine,
+  type MetronomeSoundId,
+  type MetronomeSubdivision,
+  type MultitrackEngine,
+} from "@/lib/multitrack-engine";
 import type { ITrack } from "@/hooks/use-tracks";
 
 export interface ISequenceSpan {
@@ -22,6 +27,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   // deleting or inserting a section before this one — can't leave this
   // pointing at the wrong slot after the array shifts.
   const activeItemIdRef = useRef<number | null>(null);
+  // True once the whole sequence has finished playing through — a ref so the
+  // rAF tick loop (a stable closure) can check it every frame without stale
+  // state, and stop re-triggering finishSequence()/pause() on every
+  // subsequent tick once we're already past the end.
+  const sequenceEndedRef = useRef(false);
 
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,11 +44,14 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [loop, setLoopState] = useState(false);
   const [tempo, setTempoState] = useState(1);
   const [pitch, setPitchState] = useState(0);
-  // Starts active: the click should be audible the moment a song is ready
-  // to play, not require an extra manual step every time.
-  const [metronomeOn, setMetronomeOnState] = useState(true);
-  const metronomeOnRef = useRef(true);
-  const padOnRef = useRef(false);
+  // Click starts active by default — but if the shared engine already has it
+  // (or Pad) running from a previous song (see finishSequence(), which lets
+  // them keep sounding across a song swap), this hook's own local state must
+  // agree with that instead of stomping it back to a hardcoded default the
+  // moment a new song page mounts.
+  const [metronomeOn, setMetronomeOnState] = useState(() => getSharedMultitrackEngine().isMetronomeOn);
+  const metronomeOnRef = useRef(metronomeOn);
+  const padOnRef = useRef(getSharedMultitrackEngine().isPadOn);
   const [trackUrls, setTrackUrls] = useState<Map<number, string>>(new Map());
   const [trackLevels, setTrackLevels] = useState<Map<number, number>>(new Map());
   const [trackVolumeDisplay, setTrackVolumeDisplay] = useState<Map<number, number>>(new Map());
@@ -60,8 +73,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [metronomeDb, setMetronomeDb] = useState(-Infinity);
   const [metronomeClipping, setMetronomeClipping] = useState(false);
   // Off by default — unlike the click, the pad should only ever be heard
-  // when the user explicitly turns it on, never automatically.
-  const [padOn, setPadOnState] = useState(false);
+  // when the user explicitly turns it on, never automatically. But if it's
+  // already sounding from a previous song (finishSequence() let it carry
+  // over), this must agree with that instead of resetting it to off.
+  const [padOn, setPadOnState] = useState(() => getSharedMultitrackEngine().isPadOn);
   const [padVolume, setPadVolumeState] = useState(0.6);
   const [padVolumeDisplay, setPadVolumeDisplay] = useState(0.6);
   const [padLevel, setPadLevel] = useState(0);
@@ -119,7 +134,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     window.speechSynthesis.speak(utterance);
   }, []);
 
-  if (!engineRef.current) engineRef.current = new MultitrackEngine();
+  if (!engineRef.current) engineRef.current = getSharedMultitrackEngine();
 
   const trackIds = (tracks ?? []).map((t) => t.id).join(",");
   const trackIdListRef = useRef<number[]>([]);
@@ -139,6 +154,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     setLoadedTracks(0);
     setTotalTracks(tracks.length);
     setSequenceEnded(false);
+    sequenceEndedRef.current = false;
 
     const urls = new Map(tracks.map((t) => [t.id, buildAuthenticatedStorageUrl(t.file_path)]));
     setTrackUrls(urls);
@@ -163,11 +179,15 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
 
         engine.setTempo(tempo);
         engine.setPitch(pitch);
+        // Every track is synced to start at transport position 0 — rewind to
+        // it now that the new song's tracks are in place. This never touches
+        // Click/Pad's own schedules, so if either carried over from the
+        // previous song (finishSequence()) they keep sounding through the cut.
+        engine.resetPosition();
         setDuration(engine.duration);
-        // dispose() (called at the start of loadTracks) cancels every
-        // Transport-scheduled event, which silently kills the click/pad loop
-        // — restart them here so a song swap doesn't drop the click that's
-        // supposed to always be running by default.
+        // Reapply the user's current Click/Pad preference — a no-op if either
+        // is already running (idempotent, see setMetronome/setPadOn), but
+        // necessary the first time a song loads in a fresh tab.
         engine.setMetronome(metronomeOnRef.current);
         engine.setPadOn(padOnRef.current);
         setIsReady(true);
@@ -185,12 +205,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackIds]);
 
-  useEffect(() => {
-    const engine = engineRef.current;
-    return () => {
-      engine?.dispose();
-    };
-  }, []);
+  // No dispose-on-unmount here: the engine is a shared singleton (see
+  // getSharedMultitrackEngine) that outlives any single song page, precisely
+  // so Click/Pad can keep sounding across a song-to-song navigation.
 
   useEffect(() => {
     let frameCount = 0;
@@ -207,7 +224,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
         lastCheckedTimeRef.current = time;
         const previousActiveItemId = activeItemIdRef.current;
 
-        if (seq.length === 0) {
+        if (seq.length === 0 || sequenceEndedRef.current) {
+          // Either nothing to follow, or we already ran off the end of the
+          // sequence (finishSequence() was called) — don't keep re-resolving
+          // and re-triggering the end-of-sequence branch every single frame.
+          // A new play()/seekTo() call resets sequenceEndedRef to re-enable this.
           activeItemIdRef.current = null;
         } else {
           // A jump bigger than a normal frame step (rewind, loop wrap, an
@@ -240,7 +261,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
                 activeItemIdRef.current = nextSpan.itemId;
                 setCurrentSequenceIndex(nextIdx);
               } else {
-                engine.pause();
+                engine.finishSequence();
+                sequenceEndedRef.current = true;
+                setSequenceEnded(true);
               }
             }
           } else {
@@ -258,7 +281,8 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
                 setCurrentSequenceIndex(nextIndex);
                 setPendingSequenceIndex(null);
               } else {
-                engine.pause();
+                engine.finishSequence();
+                sequenceEndedRef.current = true;
                 setSequenceEnded(true);
               }
             }
@@ -314,6 +338,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
 
   const play = useCallback(() => {
     setSequenceEnded(false);
+    sequenceEndedRef.current = false;
     engineRef.current?.play();
   }, []);
   const pause = useCallback(() => engineRef.current?.pause(), []);
@@ -321,9 +346,11 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.stop();
     setCurrentTime(0);
     setSequenceEnded(false);
+    sequenceEndedRef.current = false;
   }, []);
   const seekTo = useCallback((seconds: number) => {
     setSequenceEnded(false);
+    sequenceEndedRef.current = false;
     engineRef.current?.seekTo(seconds);
   }, []);
 
@@ -383,8 +410,15 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     const engine = engineRef.current;
     const span = sequenceRef.current[index];
     if (!engine || !span) return;
+    // If the sequence had already ended, the transport may still be
+    // "playing" purely to keep an independent Click/Pad sounding (see
+    // finishSequence()) — that's not a section actually in progress, so a
+    // click here should jump immediately rather than defer to a song that
+    // isn't really advancing anymore.
+    const wasSequenceEnded = sequenceEndedRef.current;
     setSequenceEnded(false);
-    if (engine.isPlaying) {
+    sequenceEndedRef.current = false;
+    if (engine.isPlaying && !wasSequenceEnded) {
       // Deferred: the currently-playing section keeps going until it naturally
       // ends (handled in the tick loop above), then jumps here.
       setPendingSequenceIndex(index);
