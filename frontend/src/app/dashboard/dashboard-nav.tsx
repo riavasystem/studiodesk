@@ -25,7 +25,7 @@ export function DashboardNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "border-b-2 px-3 py-3 text-sm whitespace-nowrap transition",
+              "border-b-2 px-3 py-2 text-sm whitespace-nowrap transition",
               isActive
                 ? "border-orange-500 text-white"
                 : "border-transparent text-white/50 hover:text-white/80",

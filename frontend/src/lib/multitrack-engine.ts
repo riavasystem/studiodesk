@@ -62,7 +62,13 @@ const MAX_CONCURRENT_TRACK_LOADS = 4;
 export class MultitrackEngine {
   private nodes = new Map<number, ITrackNode>();
   private loaded = false;
+  // Fingerprint of the currently-loaded song's tracks — lets loadTracks()
+  // recognize "this is the same song already playing" (e.g. the user
+  // navigated away from its page and back) and skip a destructive reload
+  // that would otherwise interrupt playback for no reason.
+  private loadedTrackKey: string | null = null;
   private playbackRate = 1;
+  private pitchValue = 0;
   // The click's own speed, entirely independent of `playbackRate` (the song's
   // overall playback speed) — changing one must never move the other.
   private metronomeBpm = 120;
@@ -285,6 +291,21 @@ export class MultitrackEngine {
     return max;
   }
 
+  private static trackKey(tracks: ITrackLoadInput[]): string {
+    return tracks
+      .map((t) => t.id)
+      .sort((a, b) => a - b)
+      .join(",");
+  }
+
+  /** True when these exact tracks are already the ones loaded and playing —
+   * e.g. the user navigated away from this song's page and back without
+   * picking a different song. Lets the caller skip loadTracks() entirely
+   * instead of tearing down and reloading (and interrupting) live audio. */
+  isLoadedFor(tracks: ITrackLoadInput[]): boolean {
+    return this.loaded && this.loadedTrackKey === MultitrackEngine.trackKey(tracks);
+  }
+
   async loadTracks(tracks: ITrackLoadInput[], onTrackLoaded?: () => void) {
     // Only tears down this song's own track nodes — never the transport, the
     // Click or the Pad, which are meant to keep going across a song swap
@@ -366,6 +387,7 @@ export class MultitrackEngine {
 
     this.applySoloState(tracks);
     this.loaded = true;
+    this.loadedTrackKey = MultitrackEngine.trackKey(tracks);
   }
 
   private applySoloState(tracks: ITrackMixState[]) {
@@ -521,7 +543,16 @@ export class MultitrackEngine {
   }
 
   setPitch(semitones: number) {
+    this.pitchValue = semitones;
     for (const node of this.nodes.values()) node.pitchShift.pitch = semitones;
+  }
+
+  getPitch(): number {
+    return this.pitchValue;
+  }
+
+  getTempo(): number {
+    return this.playbackRate;
   }
 
   setTempo(playbackRate: number) {
@@ -615,6 +646,7 @@ export class MultitrackEngine {
     }
     this.nodes.clear();
     this.loaded = false;
+    this.loadedTrackKey = null;
   }
 
   /** Full teardown, including the transport, Click and Pad — only for

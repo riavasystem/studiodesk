@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ListMusic, Disc3, Tag, Music2, Star, Plus, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useAuthStore } from "@/lib/auth-store";
 import { useSongs } from "@/hooks/use-songs";
@@ -12,6 +15,8 @@ import { useAlbums } from "@/hooks/use-albums";
 import { useCategories } from "@/hooks/use-categories";
 import { resolveCoverImageUrl } from "@/lib/api-client";
 import { useQueueStore } from "@/store/queue-store";
+import { getSharedMultitrackEngine } from "@/lib/multitrack-engine";
+import { openProjectInPlayer } from "@/lib/prefetch-song";
 
 const COVER_GRADIENTS = [
   "from-orange-500/25 to-transparent",
@@ -58,24 +63,38 @@ function StatCard({
  * through the playlist's repertoire-editing page first. */
 function SavedProjectCard({ playlist }: { playlist: IPlaylist }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const setQueue = useQueueStore((s) => s.setQueue);
   const { data: items } = usePlaylistSongs(playlist.id);
   const orderedSongIds = [...(items ?? [])].sort((a, b) => a.order_index - b.order_index).map((i) => i.song_id);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const open = () => openProjectInPlayer(router, queryClient, setQueue, orderedSongIds);
 
   return (
-    <button
-      onClick={() => {
-        if (orderedSongIds.length === 0) return;
-        setQueue(orderedSongIds);
-        router.push(`/dashboard/songs/${orderedSongIds[0]}?autoplay=1`);
-      }}
-      disabled={orderedSongIds.length === 0}
-      className="flex w-44 shrink-0 flex-col gap-1 rounded-xl border border-white/8 bg-linear-to-b from-white/5 to-transparent p-3 text-left transition-colors hover:border-orange-400/30 disabled:opacity-40"
-    >
-      <ListMusic className="size-4 text-white/30" />
-      <p className="mt-1 truncate text-sm font-medium text-white">{playlist.name}</p>
-      <p className="text-xs text-orange-400">Cargar y reproducir →</p>
-    </button>
+    <>
+      <button
+        onClick={() => {
+          if (orderedSongIds.length === 0) return;
+          if (getSharedMultitrackEngine().isPlaying) setConfirmOpen(true);
+          else open();
+        }}
+        disabled={orderedSongIds.length === 0}
+        className="flex w-44 shrink-0 flex-col gap-1 rounded-xl border border-white/8 bg-linear-to-b from-white/5 to-transparent p-3 text-left transition-colors hover:border-orange-400/30 disabled:opacity-40"
+      >
+        <ListMusic className="size-4 text-white/30" />
+        <p className="mt-1 truncate text-sm font-medium text-white">{playlist.name}</p>
+        <p className="text-xs text-orange-400">Cargar y reproducir →</p>
+      </button>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="¿Cambiar de reproducción?"
+        description={`Hay algo sonando ahora mismo. Abrir "${playlist.name}" va a dejar de reproducir la canción actual y empezar esta lista nueva.`}
+        confirmLabel="Sí, ir a la reproducción"
+        onConfirm={open}
+      />
+    </>
   );
 }
 
@@ -104,7 +123,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <Link
-          href="/dashboard/songs"
+          href="/dashboard/songs/library"
           className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-3.5 py-2 text-sm font-medium text-black hover:bg-orange-400"
         >
           <Plus className="size-4" /> Nueva canción
@@ -112,7 +131,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard href="/dashboard/songs" label="Canciones" count={songs?.length} icon={Music2} />
+        <StatCard href="/dashboard/songs/library" label="Canciones" count={songs?.length} icon={Music2} />
         <StatCard href="/dashboard/playlists" label="Playlists" count={playlists?.length} icon={ListMusic} />
         <StatCard href="/dashboard/albums" label="Álbumes" count={albums?.length} icon={Disc3} />
         <StatCard href="/dashboard/categories" label="Categorías" count={categories?.length} icon={Tag} />
@@ -179,7 +198,7 @@ export default function DashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Canciones recientes</CardTitle>
           {songs && songs.length > 8 && (
-            <Link href="/dashboard/songs" className="text-xs text-orange-400 hover:text-orange-300">
+            <Link href="/dashboard/songs/library" className="text-xs text-orange-400 hover:text-orange-300">
               Ver todas
             </Link>
           )}

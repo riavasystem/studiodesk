@@ -168,7 +168,7 @@ export function TransportBar({
   onEditSong,
 }: ITransportBarProps) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent px-5 py-4 shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_60px_-20px_rgba(0,0,0,0.8)]">
+    <div className="flex flex-col gap-2 rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent px-4 py-2.5 shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_60px_-20px_rgba(0,0,0,0.8)]">
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={onEditSong}

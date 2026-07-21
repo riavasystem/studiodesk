@@ -33,7 +33,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-svh flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-3 md:px-10">
+      <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-2 md:px-10">
         <Link href="/dashboard" className="font-mono text-sm tracking-[0.3em] text-white/80 uppercase">
           StudioDesk
         </Link>
@@ -48,7 +48,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* An app-shell layout: header/nav stay pinned, only this region
           scrolls — so the player (transport, timeline, mixer) reads as a
           contained app view instead of a long page you scroll past. */}
-      <main className="flex-1 overflow-y-auto px-6 py-4 md:px-10">{children}</main>
+      <main className="flex-1 overflow-y-auto px-6 py-3 md:px-10">{children}</main>
     </div>
   );
 }

@@ -252,7 +252,7 @@ export function MultitrackPlayer({
   const mainUrl = player.trackUrls.get(tracks[0]?.id);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <TransportBar
         bpm={song.bpm}
         onBpmChange={(value) => buildSongPayload({ bpm: value })}
@@ -323,8 +323,8 @@ export function MultitrackPlayer({
           onSeekToIndex={player.seekToSequenceIndex}
         />
       ) : (
-        <div className="rounded-2xl border border-white/6 bg-black/20 p-3">
-          <div className="flex w-full flex-wrap gap-2">
+        <div className="rounded-2xl border border-white/6 bg-black/20 p-2">
+          <div className="flex w-full flex-wrap gap-1.5">
             <MetronomeStrip
               color="#64748b"
               displayVolume={player.metronomeVolumeDisplay}

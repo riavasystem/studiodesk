@@ -375,7 +375,7 @@ export function Timeline({
   return (
     <div className="rounded-2xl border border-white/6 bg-black/25">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-t-2xl border-b border-white/6 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-t-2xl border-b border-white/6 px-3 py-2">
         <MarkerQuickAdd songId={songId} position={currentTime} triggerLabel={`Sección en ${formatTime(currentTime)}`} />
 
         <button
@@ -408,7 +408,7 @@ export function Timeline({
       </div>
 
       {/* Single canvas: colored sections + waveform + all editing */}
-      <div className="overflow-x-auto rounded-b-2xl px-3 py-4">
+      <div className="overflow-x-auto rounded-b-2xl px-2 py-2">
         <div className="flex items-stretch">
           {/* Independent from the colored sections: a reserved gray-transparent
               "insertion gutter" before the Intro (the only bands with this
@@ -600,7 +600,7 @@ export function Timeline({
               duration={duration}
               isMuted={false}
               onSeek={onSeek}
-              height={120}
+              height={92}
               zoom={zoom}
             />
           )}
@@ -646,11 +646,11 @@ export function Timeline({
           here only takes it out of the sequence (the section itself, and
           its audio, stays untouched and can still be re-added later). */}
       {arrangementBlocks.length > 0 && (
-        <div className="border-t border-white/6 px-3 py-3">
+        <div className="border-t border-white/6 px-2 py-2">
           <p className="mb-2 font-mono text-[10px] tracking-widest text-white/30 uppercase">
             Secuencia de reproducción — el orden real en que suena la canción
           </p>
-          <div className="flex h-14 items-stretch overflow-hidden rounded-lg border border-white/10 bg-black/30">
+          <div className="flex h-12 items-stretch overflow-hidden rounded-lg border border-white/10 bg-black/30">
             {editMode && (
               <div className="flex w-14 shrink-0 flex-col items-center justify-center gap-1 border-r-2 border-dashed border-white/40 bg-neutral-500/25 py-1">
                 <button

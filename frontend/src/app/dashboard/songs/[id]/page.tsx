@@ -42,7 +42,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {song && <EditSongDialog song={song} open={editOpen} onOpenChange={setEditOpen} />}
 
       {song && tracks && tracks.length > 0 && (

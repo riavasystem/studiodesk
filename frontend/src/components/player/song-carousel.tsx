@@ -23,8 +23,6 @@ export function SongCarousel({ activeSongId, allSongs }: ISongCarouselProps) {
     .map((id) => allSongs.find((s) => s.id === id))
     .filter((s): s is ISong => s !== undefined);
 
-  if (songs.length === 0) return null;
-
   return (
     <div className="flex items-stretch gap-4 overflow-x-auto pb-1">
       {songs.map((s) => {
@@ -36,7 +34,7 @@ export function SongCarousel({ activeSongId, allSongs }: ISongCarouselProps) {
           <Link
             key={s.id}
             href={`/dashboard/songs/${s.id}`}
-            className={`group relative flex h-32 w-52 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-linear-to-br from-white/10 to-transparent transition-all ${
+            className={`group relative flex h-24 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-linear-to-br from-white/10 to-transparent transition-all ${
               active
                 ? "border-orange-400/60 shadow-[0_0_0_1px_rgba(255,138,31,0.35),0_8px_24px_-8px_rgba(255,138,31,0.4)]"
                 : "border-white/8 group-hover:border-white/20"
@@ -86,9 +84,9 @@ export function SongCarousel({ activeSongId, allSongs }: ISongCarouselProps) {
       })}
       <button
         onClick={() => setAddOpen(true)}
-        className="flex h-32 w-32 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/12 text-white/25 hover:border-white/25 hover:text-white/50"
+        className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/12 text-white/25 hover:border-white/25 hover:text-white/50"
       >
-        <Plus className="size-8" />
+        <Plus className="size-7" />
       </button>
       <AddToQueueDialog open={addOpen} onOpenChange={setAddOpen} allSongs={allSongs} queue={queue} />
     </div>

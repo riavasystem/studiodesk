@@ -161,6 +161,36 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
       return;
     }
 
+    const loadInputs = tracks.map((t) => ({
+      id: t.id,
+      url: buildAuthenticatedStorageUrl(t.file_path),
+      volume: t.volume,
+      pan: t.pan,
+      isMuted: t.is_muted,
+      isSolo: t.is_solo,
+      isPhaseInverted: t.is_phase_inverted,
+    }));
+
+    // These exact tracks are already loaded and (possibly) playing in the
+    // shared engine — e.g. the user switched to another dashboard tab and
+    // came back to this same song. Reattach to the live engine instead of
+    // reloading, so navigating away and back never interrupts playback.
+    if (engine.isLoadedFor(loadInputs)) {
+      setTrackUrls(new Map(loadInputs.map((t) => [t.id, t.url])));
+      setLoadedTracks(tracks.length);
+      setTotalTracks(tracks.length);
+      setDuration(engine.duration);
+      // Reflect the engine's actual current tempo/pitch instead of this
+      // fresh hook instance's defaults — otherwise reattaching after
+      // navigating away and back would silently reset them.
+      setTempoState(engine.getTempo());
+      setPitchState(engine.getPitch());
+      setIsReady(true);
+      setIsLoading(false);
+      setLoadError(null);
+      return;
+    }
+
     let cancelled = false;
     setIsLoading(true);
     setIsReady(false);

@@ -3,20 +3,26 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Play, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAddSongToPlaylist, usePlaylistSongs, useRemoveSongFromPlaylist } from "@/hooks/use-playlists";
 import { useSongs } from "@/hooks/use-songs";
 import { useQueueStore } from "@/store/queue-store";
+import { getSharedMultitrackEngine } from "@/lib/multitrack-engine";
+import { openProjectInPlayer } from "@/lib/prefetch-song";
 
 export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const playlistId = Number(id);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const setQueue = useQueueStore((s) => s.setQueue);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: items, isLoading } = usePlaylistSongs(playlistId);
   const { data: songs } = useSongs();
@@ -29,10 +35,12 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
   const orderedSongIds = [...(items ?? [])].sort((a, b) => a.order_index - b.order_index).map((i) => i.song_id);
 
-  const openInPlayer = () => {
+  const openInPlayer = () => openProjectInPlayer(router, queryClient, setQueue, orderedSongIds);
+
+  const handleOpenClick = () => {
     if (orderedSongIds.length === 0) return;
-    setQueue(orderedSongIds);
-    router.push(`/dashboard/songs/${orderedSongIds[0]}?autoplay=1`);
+    if (getSharedMultitrackEngine().isPlaying) setConfirmOpen(true);
+    else openInPlayer();
   };
 
   const handleAdd = () => {
@@ -59,10 +67,19 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
           <p className="mt-4 font-mono text-xs tracking-[0.3em] text-orange-400 uppercase">Playlist</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Repertorio</h1>
         </div>
-        <Button onClick={openInPlayer} disabled={orderedSongIds.length === 0} className="mt-1 shrink-0">
+        <Button onClick={handleOpenClick} disabled={orderedSongIds.length === 0} className="mt-1 shrink-0">
           <Play className="size-4" /> Abrir en el reproductor
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="¿Cambiar de reproducción?"
+        description="Hay algo sonando ahora mismo. Abrir este repertorio va a dejar de reproducir la canción actual y empezar esta lista nueva."
+        confirmLabel="Sí, ir a la reproducción"
+        onConfirm={openInPlayer}
+      />
 
       <Card className="border-white/10">
         <CardHeader>
