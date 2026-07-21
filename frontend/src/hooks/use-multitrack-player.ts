@@ -38,7 +38,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   // to play, not require an extra manual step every time.
   const [metronomeOn, setMetronomeOnState] = useState(true);
   const metronomeOnRef = useRef(true);
-  const padOnRef = useRef(true);
+  const padOnRef = useRef(false);
   const [trackUrls, setTrackUrls] = useState<Map<number, string>>(new Map());
   const [trackLevels, setTrackLevels] = useState<Map<number, number>>(new Map());
   const [trackVolumeDisplay, setTrackVolumeDisplay] = useState<Map<number, number>>(new Map());
@@ -59,9 +59,9 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
   const [metronomeLevel, setMetronomeLevel] = useState(0);
   const [metronomeDb, setMetronomeDb] = useState(-Infinity);
   const [metronomeClipping, setMetronomeClipping] = useState(false);
-  // Starts active, same as the click — the whole point of an "always
-  // running" ambient bed is that it's on unless the user turns it off.
-  const [padOn, setPadOnState] = useState(true);
+  // Off by default — unlike the click, the pad should only ever be heard
+  // when the user explicitly turns it on, never automatically.
+  const [padOn, setPadOnState] = useState(false);
   const [padVolume, setPadVolumeState] = useState(0.6);
   const [padVolumeDisplay, setPadVolumeDisplay] = useState(0.6);
   const [padLevel, setPadLevel] = useState(0);

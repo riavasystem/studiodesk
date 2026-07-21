@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { resolveCoverImageUrl } from "@/lib/api-client";
 import { DefaultSongCover } from "@/components/ui/default-song-cover";
@@ -17,6 +18,13 @@ export function AddToQueueDialog({ open, onOpenChange, allSongs, queue }: IAddTo
   const addToQueue = useQueueStore((s) => s.addToQueue);
   const available = allSongs.filter((s) => !queue.includes(s.id));
 
+  const handleAdd = (s: ISong) => {
+    addToQueue(s.id);
+    toast.success(`"${s.title}" se agregó a la lista`, {
+      description: "Sonará automáticamente al terminar la canción actual.",
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -31,7 +39,7 @@ export function AddToQueueDialog({ open, onOpenChange, allSongs, queue }: IAddTo
           {available.map((s) => (
             <button
               key={s.id}
-              onClick={() => addToQueue(s.id)}
+              onClick={() => handleAdd(s)}
               className="flex items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-white/10 hover:bg-white/5"
             >
               <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/8">

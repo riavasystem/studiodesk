@@ -541,6 +541,11 @@ export class MultitrackEngine {
     // silently refuse to reschedule it after loading the next song.
     this.metronomeEventId = null;
     this.padLoopId = null;
+    // Transport.cancel() only removes the *scheduled retriggers* — a chord
+    // already mid-sustain from triggerAttack() keeps ringing on its own
+    // envelope regardless, since it was never tied to the Transport clock.
+    // Force it silent now so it can't audibly bleed into whatever loads next.
+    this.padSynth.releaseAll();
     this.padSounding = false;
     for (const node of this.nodes.values()) {
       node.player.unsync();

@@ -136,12 +136,22 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
       if (e.key.toLowerCase() === "f") {
         e.preventDefault();
         player.toggleGlobalFade();
+        return;
+      }
+      // Quick-jump shortcuts: 1-9 loads the Nth song in the current queue —
+      // built for live use, switching songs mid-set without touching the mouse.
+      if (/^[1-9]$/.test(e.key)) {
+        const targetId = queue[Number(e.key) - 1];
+        if (targetId !== undefined && targetId !== song.id) {
+          e.preventDefault();
+          router.push(`/dashboard/songs/${targetId}?autoplay=1`);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [queue, song.id]);
 
   const buildPayload = (track: ITrack, patch: Partial<ITrack>) => {
     const updated = { ...track, ...patch };
