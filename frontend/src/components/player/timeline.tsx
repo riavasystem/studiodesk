@@ -406,7 +406,7 @@ export function Timeline({
             </div>
           )}
 
-        <div ref={canvasRef} className="relative shrink-0">
+        <div ref={canvasRef} className="relative min-w-0 flex-1">
           {bands.length > 0 ? (
             <div className="absolute inset-0 z-10 flex">
               {bands.map(({ marker, widthPct, start, sequenceIndex }) => {
