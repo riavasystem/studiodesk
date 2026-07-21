@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { TrackWaveform } from "@/components/player/track-waveform";
 import { MarkerQuickAdd } from "@/components/player/marker-quick-add";
 import { useAutoDetectMarkers, useDeleteMarker, useUpdateMarker, type ISongMarker } from "@/hooks/use-markers";
-import { useAppendSequenceItem } from "@/hooks/use-sequence";
+import { useAppendSequenceItem, useRemoveSequenceItem } from "@/hooks/use-sequence";
 import type { ISequenceSpan } from "@/hooks/use-multitrack-player";
 
 const MIN_SECTION_SECONDS = 1;
@@ -66,6 +66,7 @@ export function Timeline({
   const updateMarker = useUpdateMarker(songId);
   const autoDetect = useAutoDetectMarkers(songId);
   const appendItem = useAppendSequenceItem(songId);
+  const removeItem = useRemoveSequenceItem(songId);
 
   const [zoom, setZoom] = useState(0);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -128,15 +129,25 @@ export function Timeline({
     const widthPct = duration > 0 ? Math.max(0, ((end - start) / duration) * 100) : 0;
     // A marker's canonical clickable slot is its first chronological occurrence
     // in the sequence — repeats are only individually reachable from the
-    // sequence editor panel, where each row is an unambiguous specific slot.
+    // sequence strip below, where each block is an unambiguous specific slot.
     const sequenceIndex = sequence.findIndex((s) => s.markerId === marker.id);
-    // How many times this same section appears in the play sequence — a
-    // repeat added via (+) doesn't get its own band on this physical-time
-    // canvas (it plays the very same audio range again), so this count is
-    // the only visual cue here that a repeat was actually added.
-    const repeatCount = sequence.filter((s) => s.markerId === marker.id).length;
-    return { marker, start, end, widthPct, sequenceIndex, repeatCount, index };
+    return { marker, start, end, widthPct, sequenceIndex, index };
   });
+
+  // The actual play order, laid out left-to-right by cumulative duration —
+  // this is what genuinely changes when a section is added/removed/repeated,
+  // as opposed to `bands` above (always one block per physical audio region,
+  // regardless of how many times — or how few — it's actually played).
+  let arrangementCursor = 0;
+  const arrangementBlocks = sequence.map((span, seqIndex) => {
+    const marker = (markers ?? []).find((m) => m.id === span.markerId);
+    const clampedEnd = Number.isFinite(span.end) ? span.end : duration;
+    const blockDuration = Math.max(0, clampedEnd - span.start);
+    const block = { span, marker, seqIndex, start: arrangementCursor, end: arrangementCursor + blockDuration };
+    arrangementCursor += blockDuration;
+    return block;
+  });
+  const arrangementDuration = arrangementCursor;
 
   const playheadPct = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
   const addDialogBand =
@@ -361,7 +372,7 @@ export function Timeline({
         <div ref={canvasRef} className="relative">
           {bands.length > 0 ? (
             <div className="absolute inset-0 z-10 flex">
-              {bands.map(({ marker, widthPct, start, sequenceIndex, repeatCount }) => {
+              {bands.map(({ marker, widthPct, start, sequenceIndex }) => {
                 const isActive = sequenceIndex !== -1 && sequenceIndex === currentSequenceIndex;
                 const isPending = sequenceIndex !== -1 && sequenceIndex === pendingSequenceIndex;
                 return (
@@ -407,15 +418,6 @@ export function Timeline({
                       >
                         {marker.label}
                         {isPending && <Clock3 className="size-2.5 shrink-0" />}
-                      </span>
-                    )}
-
-                    {repeatCount > 1 && (
-                      <span
-                        title={`Esta sección se repite ${repeatCount} veces en la secuencia de reproducción — mirá el panel Secuencia para el detalle`}
-                        className="absolute top-1.5 right-1.5 rounded-full bg-black/70 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white/80"
-                      >
-                        ×{repeatCount}
                       </span>
                     )}
 
@@ -593,6 +595,129 @@ export function Timeline({
         </div>
       </div>
 
+      {/* The actual arrangement: one block per entry in the play sequence, in
+          play order — unlike the physical-time canvas above, a repeated
+          section really does get its own block here, and removing a block
+          here only takes it out of the sequence (the section itself, and
+          its audio, stays untouched and can still be re-added later). */}
+      {arrangementBlocks.length > 0 && (
+        <div className="border-t border-white/6 px-3 py-3">
+          <p className="mb-2 font-mono text-[10px] tracking-widest text-white/30 uppercase">
+            Secuencia de reproducción — el orden real en que suena la canción
+          </p>
+          <div className="flex h-14 items-stretch overflow-hidden rounded-lg border border-white/10 bg-black/30">
+            {editMode && (
+              <div className="flex w-14 shrink-0 flex-col items-center justify-center gap-1 border-r-2 border-dashed border-white/40 bg-neutral-500/25 py-1">
+                <button
+                  type="button"
+                  title="Agregar una sección al comienzo de la secuencia"
+                  onClick={() => setAddDialogTarget({ kind: "start" })}
+                  className="flex size-6 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white hover:bg-white/40"
+                >
+                  <Plus className="size-3.5" />
+                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={onToggleMetronome}
+                    title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                  >
+                    <InfinityIcon className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onTogglePad}
+                    title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                  >
+                    <Waves className="size-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-1 items-stretch">
+              {arrangementBlocks.map((block) => {
+                if (!block.marker) return null;
+                const widthPct =
+                  arrangementDuration > 0 ? Math.max(0, ((block.end - block.start) / arrangementDuration) * 100) : 0;
+                const isActive = block.seqIndex === currentSequenceIndex;
+                const isPending = block.seqIndex === pendingSequenceIndex;
+                return (
+                  <div
+                    key={block.span.itemId}
+                    role="button"
+                    tabIndex={0}
+                    onDoubleClick={() => onSeekToSequenceIndex(block.seqIndex)}
+                    title={`${block.marker.label} · doble click para reproducir a continuación`}
+                    className={`group relative flex shrink-0 items-center justify-center overflow-hidden border-r border-black/40 select-none ${
+                      isActive ? "ring-2 ring-inset ring-white/80" : ""
+                    } ${isPending ? "outline-dashed outline-2 -outline-offset-2 outline-white/60" : ""}`}
+                    style={{ width: `${widthPct}%`, backgroundColor: `${block.marker.color}40` }}
+                  >
+                    <span
+                      className="truncate px-1.5 text-[10px] font-semibold tracking-wide uppercase"
+                      style={{ color: block.marker.color, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+                    >
+                      {block.marker.label}
+                    </span>
+                    {isPending && <Clock3 className="absolute top-1 right-1 size-2.5 shrink-0 text-white/70" />}
+
+                    {editMode && (
+                      <button
+                        type="button"
+                        title="Quitar este bloque de la secuencia (no borra la sección ni su audio)"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeItem.mutate(block.span.itemId, {
+                            onError: () => toast.error("No se pudo quitar de la secuencia"),
+                          });
+                        }}
+                        className="absolute top-1 left-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-white opacity-90"
+                      >
+                        <Minus className="size-2.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {editMode && (
+              <div className="flex w-14 shrink-0 flex-col items-center justify-center gap-1 border-l-2 border-dashed border-white/40 bg-neutral-500/25 py-1">
+                <button
+                  type="button"
+                  title="Agregar una sección al final de la secuencia"
+                  onClick={() => setAddDialogTarget({ kind: "end" })}
+                  className="flex size-6 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white hover:bg-white/40"
+                >
+                  <Plus className="size-3.5" />
+                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={onToggleMetronome}
+                    title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                  >
+                    <InfinityIcon className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onTogglePad}
+                    title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
+                    className={`flex size-5 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                  >
+                    <Waves className="size-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <Dialog open={addDialogTarget !== null} onOpenChange={(open) => !open && setAddDialogTarget(null)}>
         <DialogContent>
           <DialogHeader>
@@ -638,8 +763,8 @@ export function Timeline({
                     { marker_id: option.id, order_index: orderIndex },
                     {
                       onSuccess: () =>
-                        toast.success(`"${option.label}" se agregó a la secuencia de reproducción`, {
-                          description: "Se repetirá su audio en ese punto al reproducir. Mirá el detalle en el panel Secuencia.",
+                        toast.success(`"${option.label}" se agregó a continuación en la secuencia`, {
+                          description: "Mirá el nuevo bloque en la franja de reproducción, debajo del lienzo.",
                         }),
                       onError: () => toast.error("No se pudo agregar la sección"),
                     },

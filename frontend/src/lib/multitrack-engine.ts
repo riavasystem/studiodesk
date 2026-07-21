@@ -119,6 +119,8 @@ export class MultitrackEngine {
   private padMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
   private padMeterDb = new Tone.Meter({ normalRange: false, smoothing: 0.6 });
   private padLoopId: number | null = null;
+  private padOnFlag = false;
+  private padSounding = false;
   private padVolumeValue = 0.28;
   private static readonly PAD_CHORD = ["C3", "E3", "G3", "B3"];
   private static readonly PAD_VELOCITY = 0.35;
@@ -171,17 +173,34 @@ export class MultitrackEngine {
     this.metronomeBeatIndex++;
   }
 
+  /** Enables/disables the pad as a *preference* — it only actually produces
+   * sound while the transport is running (see startPadSound/stopPadSound,
+   * called from play()/pause()/stop()). Toggling this while paused must stay
+   * silent; it should only take effect the next time playback starts. */
   setPadOn(enabled: boolean) {
-    if (enabled && this.padLoopId === null) {
+    this.padOnFlag = enabled;
+    if (enabled && this.isPlaying) this.startPadSound();
+    else if (!enabled) this.stopPadSound();
+  }
+
+  private startPadSound() {
+    if (this.padSounding) return;
+    this.padSounding = true;
+    this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD, undefined, MultitrackEngine.PAD_VELOCITY);
+    this.padLoopId = Tone.getTransport().scheduleRepeat(() => {
+      this.padSynth.triggerRelease(MultitrackEngine.PAD_CHORD);
       this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD, undefined, MultitrackEngine.PAD_VELOCITY);
-      this.padLoopId = Tone.getTransport().scheduleRepeat(() => {
-        this.padSynth.triggerRelease(MultitrackEngine.PAD_CHORD);
-        this.padSynth.triggerAttack(MultitrackEngine.PAD_CHORD, undefined, MultitrackEngine.PAD_VELOCITY);
-      }, MultitrackEngine.PAD_LOOP_SECONDS);
-    } else if (!enabled && this.padLoopId !== null) {
+    }, MultitrackEngine.PAD_LOOP_SECONDS);
+  }
+
+  private stopPadSound() {
+    if (this.padLoopId !== null) {
       Tone.getTransport().clear(this.padLoopId);
-      this.padSynth.releaseAll();
       this.padLoopId = null;
+    }
+    if (this.padSounding) {
+      this.padSynth.releaseAll();
+      this.padSounding = false;
     }
   }
 
@@ -487,15 +506,18 @@ export class MultitrackEngine {
   play() {
     if (!this.loaded) return;
     Tone.getTransport().start();
+    if (this.padOnFlag) this.startPadSound();
   }
 
   pause() {
     Tone.getTransport().pause();
+    this.stopPadSound();
   }
 
   stop() {
     Tone.getTransport().stop();
     Tone.getTransport().seconds = 0;
+    this.stopPadSound();
   }
 
   seekTo(seconds: number) {
@@ -519,6 +541,7 @@ export class MultitrackEngine {
     // silently refuse to reschedule it after loading the next song.
     this.metronomeEventId = null;
     this.padLoopId = null;
+    this.padSounding = false;
     for (const node of this.nodes.values()) {
       node.player.unsync();
       node.player.dispose();
