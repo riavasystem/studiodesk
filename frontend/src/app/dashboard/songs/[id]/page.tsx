@@ -1,15 +1,12 @@
 "use client";
 
 import { use, useRef, useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, Upload } from "lucide-react";
+import { Pencil, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MultitrackPlayerLoader } from "@/components/player/multitrack-player-loader";
 import { EditSongDialog } from "@/components/songs/edit-song-dialog";
-import { resolveCoverImageUrl } from "@/lib/api-client";
-import { DefaultSongCover } from "@/components/ui/default-song-cover";
 import { useSong, useSongs } from "@/hooks/use-songs";
 import {
   useCreateTrack,
@@ -122,43 +119,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <Link
-          href="/dashboard/songs"
-          className="inline-flex w-fit items-center gap-1 text-sm text-white/50 hover:text-white/80"
-        >
-          <ArrowLeft className="size-4" /> Canciones
-        </Link>
-        {song && (
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil className="size-4" />
-            Editar
-          </Button>
-        )}
-      </div>
-
       {song && <EditSongDialog song={song} open={editOpen} onOpenChange={setEditOpen} />}
-
-      {song && (
-        <div className="flex items-center gap-4">
-          <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/8 bg-white/4">
-            {song.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={resolveCoverImageUrl(song.cover_image_url) ?? undefined}
-                alt={song.title}
-                className="size-full object-contain"
-              />
-            ) : (
-              <DefaultSongCover seed={song.id} />
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-lg font-semibold text-white">{song.title}</p>
-            <p className="truncate text-sm text-white/45">{song.artist}</p>
-          </div>
-        </div>
-      )}
 
       {song && tracks && tracks.length > 0 && (
         <MultitrackPlayerLoader
@@ -166,6 +127,7 @@ export default function SongDetailPage({ params }: { params: Promise<{ id: strin
           songs={songs ?? []}
           tracks={tracks}
           onUpdateTrack={(input) => updateTrack.mutate(input)}
+          onEditSong={() => setEditOpen(true)}
         />
       )}
 

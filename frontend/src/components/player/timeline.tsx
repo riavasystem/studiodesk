@@ -568,8 +568,8 @@ export function Timeline({
             className="absolute top-0 bottom-0 z-40 flex w-4 -translate-x-1/2 cursor-ew-resize flex-col items-center"
             style={{ left: `${playheadPct}%` }}
           >
-            <div className="pointer-events-none size-2.5 -translate-y-1/2 rotate-45 bg-orange-400 shadow-[0_0_8px_rgba(255,138,31,0.9)]" />
-            <div className="pointer-events-none w-0.75 flex-1 bg-orange-400 shadow-[0_0_10px_rgba(255,138,31,0.9),0_0_4px_rgba(255,255,255,0.9)]" />
+            <div className="pointer-events-none size-2.5 -translate-y-1/2 rotate-45 bg-white shadow-[0_0_10px_rgba(255,255,255,0.95)]" />
+            <div className="pointer-events-none w-0.75 flex-1 bg-white shadow-[0_0_12px_rgba(255,255,255,0.95),0_0_24px_rgba(255,255,255,0.5)]" />
           </div>
 
           {mainUrl && (

@@ -35,6 +35,7 @@ interface IMultitrackPlayerLoaderProps {
     is_hidden: boolean;
     duration_seconds: number | null;
   }) => void;
+  onEditSong: () => void;
 }
 
 export function MultitrackPlayerLoader(props: IMultitrackPlayerLoaderProps) {

@@ -44,9 +44,10 @@ interface IMultitrackPlayerProps {
     is_hidden: boolean;
     duration_seconds: number | null;
   }) => void;
+  onEditSong: () => void;
 }
 
-export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultitrackPlayerProps) {
+export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack, onEditSong }: IMultitrackPlayerProps) {
   const { data: markers } = useMarkers(song.id);
   const { data: sequenceItems } = useSequence(song.id);
   const updateSong = useUpdateSong(song.id);
@@ -266,6 +267,8 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         originalKey={originalKey}
         playbackKey={playbackKey}
         onPlaybackKeyChange={handlePlaybackKeyChange}
+        songTitle={song.title}
+        onEditSong={onEditSong}
       />
 
       <SongCarousel activeSongId={song.id} allSongs={songs} />

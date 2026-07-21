@@ -1,7 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ListMusic, ListTree, Loader2, Pause, Pencil, Play, Repeat, Square, SkipBack } from "lucide-react";
+import {
+  AlertTriangle,
+  ListMusic,
+  ListTree,
+  Loader2,
+  Pause,
+  Pencil,
+  Play,
+  Repeat,
+  Settings2,
+  Square,
+  SkipBack,
+} from "lucide-react";
 import { KEY_NAMES } from "@/lib/music-keys";
 
 export type PlayerPanel = "mixer" | "sequence" | "queue";
@@ -121,6 +133,8 @@ interface ITransportBarProps {
   originalKey: string;
   playbackKey: string;
   onPlaybackKeyChange: (value: string) => void;
+  songTitle: string;
+  onEditSong: () => void;
 }
 
 export function TransportBar({
@@ -150,10 +164,21 @@ export function TransportBar({
   originalKey,
   playbackKey,
   onPlaybackKeyChange,
+  songTitle,
+  onEditSong,
 }: ITransportBarProps) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-white/8 bg-linear-to-b from-white/5 to-transparent px-5 py-4 shadow-[0_0_0_1px_rgba(0,0,0,0.4),0_20px_60px_-20px_rgba(0,0,0,0.8)]">
       <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={onEditSong}
+          title="Editar datos de la canción (título, artista, BPM, tonalidad, portada...)"
+          className="flex min-w-0 max-w-40 items-center gap-1.5 rounded-lg px-1 py-1 text-left text-white/70 hover:text-white"
+        >
+          <span className="truncate text-sm font-semibold">{songTitle}</span>
+          <Settings2 className="size-3.5 shrink-0 text-white/35" />
+        </button>
+
         <div className="flex flex-col items-start gap-0.5 leading-none">
           <BpmField bpm={bpm} onCommit={onBpmChange} />
           <select

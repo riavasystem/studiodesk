@@ -290,7 +290,17 @@ export class MultitrackEngine {
     // Click or the Pad, which are meant to keep going across a song swap
     // (see finishSequence()) since they're independent of any one song.
     this.disposeTracks();
-    await Tone.start();
+    // Every new Tone.Player below is sync()'d to start at transport position
+    // 0. If the transport is still running past 0 — Click/Pad kept it alive
+    // across the previous song's end (finishSequence()) — Tone treats that
+    // start(0) as already in the past and tries to start it *immediately*,
+    // which needs the buffer loaded right then; since it's still fetching,
+    // that throws "buffer is either not set or not loaded". Pausing and
+    // rewinding first avoids it, without stopping Click/Pad (a paused
+    // transport just freezes their schedules — an already-sustaining Pad
+    // note keeps ringing on its own envelope regardless).
+    if (Tone.getTransport().state === "started") Tone.getTransport().pause();
+    Tone.getTransport().seconds = 0;
 
     const loadOne = (track: ITrackLoadInput) =>
       new Promise<void>((resolve, reject) => {
@@ -527,6 +537,13 @@ export class MultitrackEngine {
 
   play() {
     if (!this.loaded) return;
+    // Resuming the (possibly still-suspended) audio context belongs here,
+    // tied to an actual play request, rather than inside loadTracks() —
+    // loading/decoding tracks doesn't need a running context, and gating
+    // track-loading progress on it meant a page freshly opened via a hard
+    // reload (no user gesture yet for the browser's autoplay policy to hang
+    // its resume() promise on) got stuck forever at "Cargando pistas 0/N".
+    void Tone.start();
     this.resumeTracks();
     // Transport may already be running if Click/Pad carried over from a
     // previous song (finishSequence() never paused it) — starting an
