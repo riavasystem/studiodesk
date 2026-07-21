@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TransportBar, type PlayerPanel } from "@/components/player/transport-bar";
 import { SongCarousel } from "@/components/player/song-carousel";
 import { Timeline } from "@/components/player/timeline";
 import { SequenceEditor } from "@/components/player/sequence-editor";
+import { QueuePanel } from "@/components/player/queue-panel";
 import { BottomBar } from "@/components/player/bottom-bar";
 import { ChannelStrip } from "@/components/player/channel-strip";
 import { MetronomeStrip } from "@/components/player/metronome-strip";
@@ -94,6 +95,19 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player.isReady, searchParams]);
+
+  // Once playback reaches the last section of the sequence (e.g. "Final"),
+  // start warming the next song's page in the background so the auto-advance
+  // transition doesn't stall on a cold navigation/data fetch.
+  const prefetchedForRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (nextSongId === undefined) return;
+    if (sequenceSpans.length === 0) return;
+    if (player.currentSequenceIndex !== sequenceSpans.length - 1) return;
+    if (prefetchedForRef.current === nextSongId) return;
+    prefetchedForRef.current = nextSongId;
+    router.prefetch(`/dashboard/songs/${nextSongId}`);
+  }, [player.currentSequenceIndex, sequenceSpans.length, nextSongId, router, prefetchedForRef]);
 
   useEffect(() => {
     if (!player.sequenceEnded) return;
@@ -274,7 +288,9 @@ export function MultitrackPlayer({ song, songs, tracks, onUpdateTrack }: IMultit
         editMode={editMode}
       />
 
-      {panel === "sequence" ? (
+      {panel === "queue" ? (
+        <QueuePanel activeSongId={song.id} allSongs={songs} />
+      ) : panel === "sequence" ? (
         <SequenceEditor
           songId={song.id}
           markers={markers}

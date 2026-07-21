@@ -369,7 +369,44 @@ export function Timeline({
 
       {/* Single canvas: colored sections + waveform + all editing */}
       <div className="overflow-x-auto rounded-b-2xl px-3 py-4">
-        <div ref={canvasRef} className="relative">
+        <div className="flex items-stretch">
+          {/* Independent from the colored sections: a reserved gray-transparent
+              "insertion gutter" before the Intro (the only bands with this
+              color), as its own dedicated space rather than overlapping the
+              first section. Also carries the always-on Click/Pad infinity
+              toggles, since those loop for the whole song regardless of section. */}
+          {editMode && bands.length > 0 && (
+            <div className="flex w-14 shrink-0 flex-col items-center justify-between rounded-l-lg border-2 border-dashed border-white/40 bg-neutral-500/25 py-1.5 backdrop-blur-[1px]">
+              <button
+                type="button"
+                title="Agregar una sección antes de la Intro"
+                onClick={() => setAddDialogTarget({ kind: "start" })}
+                className="flex size-9 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white shadow-[0_0_10px_rgba(255,255,255,0.25)] hover:bg-white/40"
+              >
+                <Plus className="size-5" />
+              </button>
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={onToggleMetronome}
+                  title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
+                  className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                >
+                  <InfinityIcon className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onTogglePad}
+                  title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
+                  className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+                >
+                  <Waves className="size-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+        <div ref={canvasRef} className="relative shrink-0">
           {bands.length > 0 ? (
             <div className="absolute inset-0 z-10 flex">
               {bands.map(({ marker, widthPct, start, sequenceIndex }) => {
@@ -460,73 +497,6 @@ export function Timeline({
             </div>
           )}
 
-          {/* Independent from the colored sections: a reserved gray-transparent
-              "insertion gutter" at each edge (the only bands with this color),
-              so it reads as its own kind of slot rather than a tiny floating
-              button. Also carries the always-on Click/Pad infinity toggles,
-              since those loop for the whole song regardless of section. */}
-          {editMode && bands.length > 0 && (
-            <div className="absolute top-0 left-0 z-30 flex h-full w-14 shrink-0 flex-col items-center justify-between border-r-2 border-dashed border-white/40 bg-neutral-500/25 py-1.5 backdrop-blur-[1px]">
-              <button
-                type="button"
-                title="Agregar una sección antes de la Intro"
-                onClick={() => setAddDialogTarget({ kind: "start" })}
-                className="flex size-9 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white shadow-[0_0_10px_rgba(255,255,255,0.25)] hover:bg-white/40"
-              >
-                <Plus className="size-5" />
-              </button>
-              <div className="flex flex-col items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={onToggleMetronome}
-                  title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                  className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
-                >
-                  <InfinityIcon className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={onTogglePad}
-                  title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                  className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
-                >
-                  <Waves className="size-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {editMode && bands.length > 0 && (
-            <div className="absolute top-0 right-0 z-30 flex h-full w-14 shrink-0 flex-col items-center justify-between border-l-2 border-dashed border-white/40 bg-neutral-500/25 py-1.5 backdrop-blur-[1px]">
-              <button
-                type="button"
-                title="Agregar una sección después del Final"
-                onClick={() => setAddDialogTarget({ kind: "end" })}
-                className="flex size-9 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white shadow-[0_0_10px_rgba(255,255,255,0.25)] hover:bg-white/40"
-              >
-                <Plus className="size-5" />
-              </button>
-              <div className="flex flex-col items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={onToggleMetronome}
-                  title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
-                  className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
-                >
-                  <InfinityIcon className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={onTogglePad}
-                  title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
-                  className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
-                >
-                  <Waves className="size-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Draggable handles for section boundaries, so they can be resized
               without touching the original audio. Restricted to the top ~65%
               of the canvas — the bottom strip is reserved for each band's
@@ -575,10 +545,11 @@ export function Timeline({
           <div
             onPointerDown={handlePlayheadPointerDown}
             title="Arrastrar para adelantar o atrasar la canción"
-            className="absolute top-0 bottom-0 z-40 flex w-4 -translate-x-1/2 cursor-ew-resize items-center justify-center"
+            className="absolute top-0 bottom-0 z-40 flex w-4 -translate-x-1/2 cursor-ew-resize flex-col items-center"
             style={{ left: `${playheadPct}%` }}
           >
-            <div className="pointer-events-none h-full w-px bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]" />
+            <div className="pointer-events-none size-2.5 -translate-y-1/2 rotate-45 bg-orange-400 shadow-[0_0_8px_rgba(255,138,31,0.9)]" />
+            <div className="pointer-events-none w-0.75 flex-1 bg-orange-400 shadow-[0_0_10px_rgba(255,138,31,0.9),0_0_4px_rgba(255,255,255,0.9)]" />
           </div>
 
           {mainUrl && (
@@ -592,6 +563,39 @@ export function Timeline({
               zoom={zoom}
             />
           )}
+        </div>
+
+        {/* Independent gutter after the Final section, own dedicated space. */}
+        {editMode && bands.length > 0 && (
+          <div className="flex w-14 shrink-0 flex-col items-center justify-between rounded-r-lg border-2 border-dashed border-white/40 bg-neutral-500/25 py-1.5 backdrop-blur-[1px]">
+            <button
+              type="button"
+              title="Agregar una sección después del Final"
+              onClick={() => setAddDialogTarget({ kind: "end" })}
+              className="flex size-9 items-center justify-center rounded-full border-2 border-white/70 bg-white/25 text-white shadow-[0_0_10px_rgba(255,255,255,0.25)] hover:bg-white/40"
+            >
+              <Plus className="size-5" />
+            </button>
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onToggleMetronome}
+                title={metronomeOn ? "Click activo — click para apagar" : "Click apagado — click para activar"}
+                className={`flex size-7 items-center justify-center rounded-full border ${metronomeOn ? "border-emerald-400/60 bg-emerald-400/30 text-emerald-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+              >
+                <InfinityIcon className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onTogglePad}
+                title={padOn ? "Pad activo — click para apagar" : "Pad apagado — click para activar"}
+                className={`flex size-7 items-center justify-center rounded-full border ${padOn ? "border-sky-400/60 bg-sky-400/30 text-sky-300" : "border-white/20 text-white/40 hover:text-white/70"}`}
+              >
+                <Waves className="size-4" />
+              </button>
+            </div>
+          </div>
+        )}
         </div>
       </div>
 

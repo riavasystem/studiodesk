@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, ListMusic, Loader2, Menu, Pause, Pencil, Play, Repeat, Square, SkipBack } from "lucide-react";
-import { toast } from "sonner";
+import { AlertTriangle, ListMusic, ListTree, Loader2, Pause, Pencil, Play, Repeat, Square, SkipBack } from "lucide-react";
 import { KEY_NAMES } from "@/lib/music-keys";
 
-export type PlayerPanel = "mixer" | "sequence";
+export type PlayerPanel = "mixer" | "sequence" | "queue";
 
 const TIME_SIGNATURE_OPTIONS = ["4/4", "3/4", "6/8", "2/4", "5/4", "7/8"];
 
@@ -246,14 +245,18 @@ export function TransportBar({
           Editar
         </button>
         <TransportButton
-          onClick={() => onPanelChange("sequence")}
-          title="Secuencia de reproducción"
-          active={panel === "sequence"}
+          onClick={() => onPanelChange(panel === "queue" ? "mixer" : "queue")}
+          title="Cola de reproducción — canciones en espera"
+          active={panel === "queue"}
         >
           <ListMusic className="size-7" />
         </TransportButton>
-        <TransportButton onClick={() => toast("No disponible en esta versión")} title="Menú">
-          <Menu className="size-7" />
+        <TransportButton
+          onClick={() => onPanelChange(panel === "sequence" ? "mixer" : "sequence")}
+          title="Secciones y secuencia de reproducción"
+          active={panel === "sequence"}
+        >
+          <ListTree className="size-7" />
         </TransportButton>
       </div>
     </div>
