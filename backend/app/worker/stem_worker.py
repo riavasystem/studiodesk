@@ -22,6 +22,8 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.db.session import SessionLocal
+from app.domains.albums.models import Album  # noqa: F401 (registers FK target for Song.album_id)
+from app.domains.categories.models import Category  # noqa: F401 (registers FK target for Song.category_id)
 from app.domains.imports.service import TRACK_TYPE_COLORS
 from app.domains.songs.models import Song
 from app.domains.stems.models import StemJob
