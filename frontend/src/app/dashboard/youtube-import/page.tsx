@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, Loader2, LogOut, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MusicLoader } from "@/components/ui/music-loader";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useDisconnectYouTube,
   useYouTubeAuthUrl,
@@ -15,6 +18,7 @@ import {
 } from "@/hooks/use-youtube";
 import { useCreateSong } from "@/hooks/use-songs";
 import { useSeparateStems, useStemJob } from "@/hooks/use-stems";
+import { KEY_NAMES } from "@/lib/music-keys";
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -52,6 +56,8 @@ function YouTubeImportContent() {
   const { data: videoList, isLoading: videosLoading } = useYouTubeVideos(null, !!status?.connected);
 
   const [selected, setSelected] = useState<IYouTubeVideo | null>(null);
+  const [bpm, setBpm] = useState("");
+  const [musicalKey, setMusicalKey] = useState<string>("");
   const [creating, setCreating] = useState(false);
   const [songId, setSongId] = useState<number | null>(null);
   const [jobId, setJobId] = useState<number | null>(null);
@@ -106,6 +112,8 @@ function YouTubeImportContent() {
         title: selected.title,
         artist: status?.google_email ?? "YouTube",
         cover_image_url: selected.thumbnail_url,
+        bpm: bpm ? Number(bpm) : null,
+        musical_key: musicalKey || null,
       });
       setSongId(song.id);
       const job = await separateStems.mutateAsync({ file, songId: song.id });
@@ -214,6 +222,34 @@ function YouTubeImportContent() {
                   piano y otros instrumentos.
                 </li>
               </ol>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="yt-bpm">BPM</Label>
+                  <Input
+                    id="yt-bpm"
+                    type="number"
+                    min={1}
+                    value={bpm}
+                    onChange={(e) => setBpm(e.target.value)}
+                    placeholder="Ej. 120"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="yt-key">Tonalidad original</Label>
+                  <Select value={musicalKey || undefined} onValueChange={setMusicalKey}>
+                    <SelectTrigger id="yt-key" className="w-full">
+                      <SelectValue placeholder="Ej. C, Am" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {KEY_NAMES.map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {key}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
