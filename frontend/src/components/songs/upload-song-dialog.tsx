@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MusicLoader } from "@/components/ui/music-loader";
 import { useCreateSong } from "@/hooks/use-songs";
 import { useSeparateStems, useStemJob } from "@/hooks/use-stems";
+import { KEY_NAMES } from "@/lib/music-keys";
 
 function stemStatusLabel(status?: string): string {
   switch (status) {
@@ -32,6 +34,8 @@ export function UploadSongDialog({ open, onOpenChange }: IUploadSongDialogProps)
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
+  const [bpm, setBpm] = useState("");
+  const [musicalKey, setMusicalKey] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
   const [songId, setSongId] = useState<number | null>(null);
   const [jobId, setJobId] = useState<number | null>(null);
@@ -45,6 +49,8 @@ export function UploadSongDialog({ open, onOpenChange }: IUploadSongDialogProps)
     if (!next) {
       setTitle("");
       setArtist("");
+      setBpm("");
+      setMusicalKey("");
       setFile(null);
       setSongId(null);
       setJobId(null);
@@ -59,7 +65,12 @@ export function UploadSongDialog({ open, onOpenChange }: IUploadSongDialogProps)
 
     setSubmitting(true);
     try {
-      const song = await createSong.mutateAsync({ title, artist: artist || "Sin artista" });
+      const song = await createSong.mutateAsync({
+        title,
+        artist: artist || "Sin artista",
+        bpm: bpm ? Number(bpm) : null,
+        musical_key: musicalKey || null,
+      });
       setSongId(song.id);
       const job = await separateStems.mutateAsync({ file, songId: song.id });
       setJobId(job.id);
@@ -103,6 +114,38 @@ export function UploadSongDialog({ open, onOpenChange }: IUploadSongDialogProps)
               <Label htmlFor="upload-artist">Artista</Label>
               <Input id="upload-artist" value={artist} onChange={(e) => setArtist(e.target.value)} />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="upload-bpm">BPM</Label>
+                <Input
+                  id="upload-bpm"
+                  type="number"
+                  min={1}
+                  value={bpm}
+                  onChange={(e) => setBpm(e.target.value)}
+                  placeholder="Ej. 120"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="upload-key">Tonalidad original</Label>
+                <Select value={musicalKey || undefined} onValueChange={setMusicalKey}>
+                  <SelectTrigger id="upload-key" className="w-full">
+                    <SelectValue placeholder="Ej. C, Am" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {KEY_NAMES.map((key) => (
+                      <SelectItem key={key} value={key}>
+                        {key}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="-mt-2 text-xs text-white/40">
+              El BPM y la tonalidad original se usan luego para el metrónomo y para calcular la transposición al
+              cambiar de tono — podés dejarlos vacíos y completarlos después editando la canción.
+            </p>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="upload-file">Archivo (.mp3 o .mp4)</Label>
               <input

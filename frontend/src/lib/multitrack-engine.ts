@@ -331,7 +331,12 @@ export class MultitrackEngine {
         const compressor = new Tone.Compressor({ threshold: 0, ratio: 1 });
         const eq = new Tone.EQ3({ low: 0, mid: 0, high: 0 });
         const panner = new Tone.Panner(track.pan);
-        const pitchShift = new Tone.PitchShift();
+        // Tone.PitchShift is a granular shifter; its default windowSize (0.1s)
+        // is tuned for short, isolated sounds and grains audibly ("robotic"/
+        // metallic) on full mixed tracks (vocals, sustained instruments). A
+        // slightly larger window smooths that out at a small cost in
+        // transient sharpness — still real-time, no extra dependency.
+        const pitchShift = new Tone.PitchShift({ windowSize: 0.12 });
         const phaseGain = new Tone.Gain(track.isPhaseInverted ? -1 : 1);
         const gain = new Tone.Gain(track.volume);
 
