@@ -8,9 +8,16 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.domains.stems.models import StemJob
 from app.domains.storage.service import EXTRACT_SOURCE_EXTENSIONS
+from app.domains.tracks.models import Track
 
 ACCEPTED_EXTENSIONS = EXTRACT_SOURCE_EXTENSIONS
 MAX_DURATION_SECONDS = 600
+
+# Preferred track types to run beat-detection against when re-detecting BPM
+# for a song that already has separated stems (no original mix left on
+# disk) — drums/bass carry the clearest, most reliable pulse for a beat
+# tracker; anything else is a fallback of last resort.
+_BPM_REFERENCE_TRACK_TYPES = ["drums", "bass"]
 
 
 def probe_duration_seconds(path: Path) -> float:
@@ -44,12 +51,19 @@ async def save_stem_upload(upload: UploadFile, filename: str) -> Path:
 
 
 def create_stem_job(
-    db: Session, owner_id: int, song_id: int, original_filename: str, source_path: Path, duration: float
+    db: Session,
+    owner_id: int,
+    song_id: int,
+    original_filename: str,
+    source_path: Path,
+    duration: float | None,
+    job_type: str = "separate",
 ) -> StemJob:
     job = StemJob(
         owner_id=owner_id,
         song_id=song_id,
         status="pending",
+        job_type=job_type,
         original_filename=original_filename,
         source_storage_path=str(source_path),
         duration_seconds=duration,
@@ -62,3 +76,11 @@ def create_stem_job(
 
 def get_stem_job(db: Session, job_id: int) -> StemJob | None:
     return db.get(StemJob, job_id)
+
+
+def pick_bpm_reference_track(tracks: list[Track]) -> Track | None:
+    for preferred_type in _BPM_REFERENCE_TRACK_TYPES:
+        match = next((t for t in tracks if t.track_type == preferred_type), None)
+        if match is not None:
+            return match
+    return tracks[0] if tracks else None

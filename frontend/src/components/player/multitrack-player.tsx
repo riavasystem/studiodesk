@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
 import { TransportBar, type PlayerPanel } from "@/components/player/transport-bar";
 import { SongCarousel } from "@/components/player/song-carousel";
@@ -20,6 +22,7 @@ import { normalizeKeyName, semitoneShiftBetweenKeys } from "@/lib/music-keys";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSequence } from "@/hooks/use-sequence";
 import { useUpdateSong } from "@/hooks/use-songs";
+import { useDetectBpm, useStemJob } from "@/hooks/use-stems";
 import { useQueueStore } from "@/store/queue-store";
 import type { ITrack, TrackType } from "@/hooks/use-tracks";
 import type { ISong } from "@/hooks/use-songs";
@@ -205,6 +208,35 @@ export function MultitrackPlayer({
     });
   };
 
+  const queryClient = useQueryClient();
+  const detectBpm = useDetectBpm();
+  const [detectBpmJobId, setDetectBpmJobId] = useState<number | null>(null);
+  const { data: detectBpmJob } = useStemJob(detectBpmJobId);
+
+  useEffect(() => {
+    if (detectBpmJobId === null) return;
+    if (detectBpmJob?.status === "completed") {
+      toast.success("BPM detectado");
+      queryClient.invalidateQueries({ queryKey: ["songs"] });
+      queryClient.invalidateQueries({ queryKey: ["songs", song.id] });
+      setDetectBpmJobId(null);
+    } else if (detectBpmJob?.status === "failed") {
+      toast.error(detectBpmJob.error_message ?? "No se pudo detectar el BPM");
+      setDetectBpmJobId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detectBpmJob, detectBpmJobId]);
+
+  const handleDetectBpm = () => {
+    detectBpm.mutate(song.id, {
+      onSuccess: (job) => setDetectBpmJobId(job.id),
+      onError: () => toast.error("No se pudo iniciar la detección de BPM"),
+    });
+  };
+
+  const isDetectingBpm =
+    detectBpm.isPending || (detectBpmJobId !== null && detectBpmJob?.status !== "completed" && detectBpmJob?.status !== "failed");
+
   const buildSongPayload = (patch: Partial<ISong>) => {
     const updated = { ...song, ...patch };
     updateSong.mutate({
@@ -261,6 +293,8 @@ export function MultitrackPlayer({
       <TransportBar
         bpm={song.bpm}
         onBpmChange={(value) => buildSongPayload({ bpm: value })}
+        onDetectBpm={handleDetectBpm}
+        isDetectingBpm={isDetectingBpm}
         timeSignature={song.time_signature}
         onTimeSignatureChange={(value) => buildSongPayload({ time_signature: value })}
         currentTime={player.currentTime}

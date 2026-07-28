@@ -179,6 +179,29 @@ def run_job(job_id: int) -> None:
             return
         source_path = Path(job.source_storage_path)
 
+        if job.job_type == "detect_bpm":
+            # Lightweight path for a song that already has stems: re-run beat
+            # detection against one of its existing tracks (source_path here
+            # is that Track's real audio file, not a temp upload — see the
+            # cleanup guard in `finally` below) and skip Demucs entirely.
+            job.progress_percent = 40
+            db.commit()
+            mp3_path = ensure_mp3(source_path)
+            beat_info = detect_beat_info(mp3_path)
+            if beat_info is None:
+                raise RuntimeError("No se pudo detectar el BPM de esta canción")
+            detected_bpm, beat_offset_seconds = beat_info
+            song = db.get(Song, job.song_id)
+            if song is not None:
+                song.bpm = detected_bpm
+                song.beat_offset_seconds = beat_offset_seconds
+            job.status = "completed"
+            job.progress_percent = PROGRESS_COMPLETED
+            job.finished_at = _now()
+            db.commit()
+            logger.info("Detect-BPM job %d completed", job_id)
+            return
+
         job.progress_percent = PROGRESS_CONVERTING
         db.commit()
         mp3_path = ensure_mp3(source_path)
@@ -262,7 +285,10 @@ def run_job(job_id: int) -> None:
         logger.exception("Job %d failed", job_id)
     finally:
         source_path = Path(job.source_storage_path) if job is not None else None
-        if source_path is not None:
+        # A "detect_bpm" job's source_storage_path points at an existing
+        # Track's real audio file (see the router), not a temp upload — must
+        # survive the job, unlike the "separate" flow's throwaway upload.
+        if source_path is not None and (job is None or job.job_type != "detect_bpm"):
             source_path.unlink(missing_ok=True)
         if mp3_path is not None and mp3_path != source_path:
             mp3_path.unlink(missing_ok=True)

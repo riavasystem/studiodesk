@@ -13,6 +13,7 @@ import {
   Settings2,
   Square,
   SkipBack,
+  Wand2,
 } from "lucide-react";
 import { KEY_NAMES } from "@/lib/music-keys";
 
@@ -109,6 +110,8 @@ function TransportButton({
 interface ITransportBarProps {
   bpm: number | null;
   onBpmChange: (value: number) => void;
+  onDetectBpm: () => void;
+  isDetectingBpm: boolean;
   timeSignature: string;
   onTimeSignatureChange: (value: string) => void;
   currentTime: number;
@@ -140,6 +143,8 @@ interface ITransportBarProps {
 export function TransportBar({
   bpm,
   onBpmChange,
+  onDetectBpm,
+  isDetectingBpm,
   timeSignature,
   onTimeSignatureChange,
   currentTime,
@@ -180,7 +185,21 @@ export function TransportBar({
         </button>
 
         <div className="flex flex-col items-start gap-0.5 leading-none">
-          <BpmField bpm={bpm} onCommit={onBpmChange} />
+          <div className="flex items-center gap-1">
+            <BpmField bpm={bpm} onCommit={onBpmChange} />
+            <button
+              onClick={onDetectBpm}
+              disabled={isDetectingBpm}
+              title="Detectar automáticamente el BPM y alinear el click con la canción"
+              className="flex size-5 items-center justify-center rounded text-white/30 transition-colors hover:text-orange-300 disabled:opacity-50"
+            >
+              {isDetectingBpm ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Wand2 className="size-3.5" />
+              )}
+            </button>
+          </div>
           <select
             value={timeSignature}
             onChange={(e) => onTimeSignatureChange(e.target.value)}

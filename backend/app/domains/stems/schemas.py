@@ -10,6 +10,7 @@ class StemJobRead(BaseModel):
     owner_id: int
     song_id: int
     status: str
+    job_type: str
     original_filename: str
     duration_seconds: float | None
     stems_created: int

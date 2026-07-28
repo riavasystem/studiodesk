@@ -8,6 +8,7 @@ export interface IStemJob {
   owner_id: number;
   song_id: number;
   status: StemJobStatus;
+  job_type: "separate" | "detect_bpm";
   original_filename: string;
   duration_seconds: number | null;
   stems_created: number;
@@ -35,5 +36,11 @@ export function useSeparateStems() {
     mutationFn: ({ file, songId }: { file: File; songId: number }) =>
       apiFetchUpload<IStemJob>("/stems/separate", file, { song_id: String(songId) }),
     onSuccess: (job) => queryClient.invalidateQueries({ queryKey: ["tracks", job.song_id] }),
+  });
+}
+
+export function useDetectBpm() {
+  return useMutation({
+    mutationFn: (songId: number) => apiFetch<IStemJob>("/stems/detect-bpm", { method: "POST", body: { song_id: songId } }),
   });
 }
