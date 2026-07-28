@@ -17,12 +17,13 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import librosa
 from sqlalchemy import select
 
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.domains.imports.service import TRACK_TYPE_COLORS
-from app.domains.songs.models import Song  # noqa: F401 (registers FK target for StemJob.song_id)
+from app.domains.songs.models import Song
 from app.domains.stems.models import StemJob
 from app.domains.storage.models import AudioFile
 from app.domains.tracks.models import Track
@@ -119,6 +120,25 @@ def ensure_mp3(source_path: Path) -> Path:
     return mp3_path
 
 
+def detect_beat_info(mp3_path: Path) -> tuple[int, float] | None:
+    """Best-effort tempo + first-beat-position detection via librosa, so the
+    metronome click can start in phase with the actual song instead of just
+    matching its BPM. Never raises — a bad detection shouldn't fail the whole
+    stem-separation job, it just means bpm/offset stay unset for that song."""
+    try:
+        y, sr = librosa.load(str(mp3_path), sr=None, mono=True)
+        tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+        bpm = int(round(float(tempo)))
+        if bpm <= 0:
+            return None
+        beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+        offset = float(beat_times[0]) if len(beat_times) > 0 else 0.0
+        return bpm, offset
+    except Exception:
+        logger.exception("Beat detection failed for %s", mp3_path)
+        return None
+
+
 def run_demucs_with_progress(cmd: list[str], job: StemJob, db) -> None:
     """Runs demucs, parsing its own tqdm progress output (0-100% of the audio
     processed) to keep job.progress_percent updating live instead of sitting
@@ -162,6 +182,16 @@ def run_job(job_id: int) -> None:
         job.progress_percent = PROGRESS_CONVERTING
         db.commit()
         mp3_path = ensure_mp3(source_path)
+
+        beat_info = detect_beat_info(mp3_path)
+        if beat_info is not None:
+            detected_bpm, beat_offset_seconds = beat_info
+            song = db.get(Song, job.song_id)
+            if song is not None:
+                if song.bpm is None:
+                    song.bpm = detected_bpm
+                song.beat_offset_seconds = beat_offset_seconds
+                db.commit()
 
         job.status = "processing"
         job.progress_percent = PROGRESS_DEMUCS_START

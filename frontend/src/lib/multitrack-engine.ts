@@ -240,14 +240,33 @@ export class MultitrackEngine {
     return 60 / this.metronomeBpm / TICKS_PER_BEAT[this.metronomeSubdivision];
   }
 
+  // Position (seconds) of the first detected beat in the song's own audio —
+  // from librosa beat-tracking at upload time (Song.beat_offset_seconds).
+  // scheduleRepeat's startTime anchors the *phase* of the repeating clicks,
+  // not just when they begin, so clicks land on beatOffsetSeconds + n *
+  // interval instead of on whatever moment the metronome happened to be
+  // switched on — i.e. actually in time with the song, not just at the right
+  // tempo.
+  private beatOffsetSeconds = 0;
+
+  private metronomePhaseSeconds(): number {
+    const interval = this.metronomeIntervalSeconds();
+    if (interval <= 0) return 0;
+    return this.beatOffsetSeconds % interval;
+  }
+
   setMetronome(enabled: boolean) {
     if (enabled && this.metronomeEventId === null) {
       // A plain-seconds interval (not a "4n" subdivision) keeps the click's
       // timing off Transport.bpm entirely, so it never moves when the song's
       // own playback-rate ("Tempo") changes.
-      this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
-        this.triggerMetronomeClick(time);
-      }, this.metronomeIntervalSeconds());
+      this.metronomeEventId = Tone.getTransport().scheduleRepeat(
+        (time) => {
+          this.triggerMetronomeClick(time);
+        },
+        this.metronomeIntervalSeconds(),
+        this.metronomePhaseSeconds(),
+      );
     } else if (!enabled && this.metronomeEventId !== null) {
       Tone.getTransport().clear(this.metronomeEventId);
       this.metronomeEventId = null;
@@ -259,14 +278,23 @@ export class MultitrackEngine {
       // scheduleRepeat's interval is fixed at call time — re-schedule so a
       // live change takes effect immediately instead of on the next toggle.
       Tone.getTransport().clear(this.metronomeEventId);
-      this.metronomeEventId = Tone.getTransport().scheduleRepeat((time) => {
-        this.triggerMetronomeClick(time);
-      }, this.metronomeIntervalSeconds());
+      this.metronomeEventId = Tone.getTransport().scheduleRepeat(
+        (time) => {
+          this.triggerMetronomeClick(time);
+        },
+        this.metronomeIntervalSeconds(),
+        this.metronomePhaseSeconds(),
+      );
     }
   }
 
   setMetronomeBpm(bpm: number) {
     this.metronomeBpm = bpm > 0 ? bpm : 120;
+    this.rescheduleMetronomeIfActive();
+  }
+
+  setBeatOffset(seconds: number) {
+    this.beatOffsetSeconds = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
     this.rescheduleMetronomeIfActive();
   }
 

@@ -12,6 +12,11 @@ class Song(TimestampedBase):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     artist: Mapped[str] = mapped_column(String(255), nullable=False)
     bpm: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Position (seconds) of the first detected beat in the audio, from librosa
+    # beat-tracking at upload time — lets the metronome click start in phase
+    # with the song instead of just matching its tempo. Independent of `bpm`
+    # so a manually-typed BPM doesn't need a matching manual offset.
+    beat_offset_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     musical_key: Mapped[str | None] = mapped_column(String(10), nullable=True)
     time_signature: Mapped[str] = mapped_column(String(10), default="4/4", nullable=False)
     duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)

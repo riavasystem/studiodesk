@@ -6,6 +6,7 @@ export interface ISong {
   title: string;
   artist: string;
   bpm: number | null;
+  beat_offset_seconds: number | null;
   musical_key: string | null;
   time_signature: string;
   duration_seconds: number | null;

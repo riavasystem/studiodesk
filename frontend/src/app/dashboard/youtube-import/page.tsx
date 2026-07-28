@@ -236,7 +236,7 @@ function YouTubeImportContent() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="yt-key">Tonalidad original</Label>
-                  <Select value={musicalKey || undefined} onValueChange={setMusicalKey}>
+                  <Select value={musicalKey || undefined} onValueChange={(value) => setMusicalKey(value ?? "")}>
                     <SelectTrigger id="yt-key" className="w-full">
                       <SelectValue placeholder="Ej. C, Am" />
                     </SelectTrigger>

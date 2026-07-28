@@ -128,7 +128,7 @@ export function UploadSongDialog({ open, onOpenChange }: IUploadSongDialogProps)
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="upload-key">Tonalidad original</Label>
-                <Select value={musicalKey || undefined} onValueChange={setMusicalKey}>
+                <Select value={musicalKey || undefined} onValueChange={(value) => setMusicalKey(value ?? "")}>
                   <SelectTrigger id="upload-key" className="w-full">
                     <SelectValue placeholder="Ej. C, Am" />
                   </SelectTrigger>

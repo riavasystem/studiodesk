@@ -32,6 +32,7 @@ class SongRead(BaseModel):
     title: str
     artist: str
     bpm: int | None
+    beat_offset_seconds: float | None
     musical_key: str | None
     time_signature: str
     duration_seconds: float | None

@@ -523,6 +523,10 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     engineRef.current?.setMetronomeBpm(bpm);
   }, []);
 
+  const setMetronomeBeatOffset = useCallback((seconds: number) => {
+    engineRef.current?.setBeatOffset(seconds);
+  }, []);
+
   const setMetronomeVolume = useCallback((value: number) => {
     setMetronomeVolumeState(value);
     engineRef.current?.setMetronomeVolume(value);
@@ -626,6 +630,7 @@ export function useMultitrackPlayer(tracks: ITrack[] | undefined, sequence: ISeq
     toggleGlobalFade,
     metronomeBpm,
     setMetronomeBpm,
+    setMetronomeBeatOffset,
     metronomeVolume,
     metronomeVolumeDisplay,
     setMetronomeVolume,
